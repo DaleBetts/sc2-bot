@@ -1,41 +1,71 @@
+import argparse
 import asyncio
 import sys
 
+import aiohttp
 from sc2 import maps
+from sc2.client import Client
 from sc2.data import Difficulty, Race
-from sc2.main import run_game
+from sc2.main import _play_game, run_game
 from sc2.player import Bot, Computer
+from sc2.portconfig import Portconfig
+from sc2.protocol import ConnectionAlreadyClosedError
 
 from bot.bot import CompetitiveBot
 
 
-def _arg(flag: str, default: str = "") -> str:
-    argv = sys.argv
-    return argv[argv.index(flag) + 1] if flag in argv else default
+def run_ladder_game(bot: Bot):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--GamePort", type=int, nargs="?")
+    parser.add_argument("--StartPort", type=int, nargs="?")
+    parser.add_argument("--LadderServer", type=str, nargs="?")
+    parser.add_argument("--OpponentId", type=str, nargs="?")
+    parser.add_argument("--RealTime", action="store_true")
+    args, _ = parser.parse_known_args()
+
+    host = args.LadderServer or "127.0.0.1"
+    lan_port = args.StartPort
+    bot.ai.opponent_id = args.OpponentId
+
+    if lan_port is None:
+        portconfig = None
+    else:
+        ports = [lan_port + p for p in range(1, 6)]
+        portconfig = Portconfig()
+        portconfig.server = [ports[1], ports[2]]
+        portconfig.players = [[ports[3], ports[4]]]
+
+    result = asyncio.get_event_loop().run_until_complete(
+        _join_ladder_game(host, args.GamePort, bot, args.RealTime, portconfig)
+    )
+    return result, args.OpponentId
+
+
+async def _join_ladder_game(host, port, bot: Bot, realtime: bool, portconfig):
+    ws_url = f"ws://{host}:{port}/sc2api"
+    ws = await aiohttp.ClientSession().ws_connect(ws_url, timeout=120)
+    client = Client(ws)
+    try:
+        result = await _play_game(bot, client, realtime, portconfig)
+    except ConnectionAlreadyClosedError:
+        result = None
+    finally:
+        await ws.close()
+    return result
 
 
 def main():
     bot = Bot(Race.Protoss, CompetitiveBot())
 
     if "--LadderServer" in sys.argv:
-        # BurnySc2 5.x: connect_to_port joins an already-running SC2 process
-        # run_ladder_game was removed in newer versions of the library
-        asyncio.run(
-            run_game(
-                None,
-                [bot],
-                host=_arg("--LadderServer", "127.0.0.1"),
-                connect_to_port=int(_arg("--GamePort", "5000")),
-            )
-        )
+        result, opponent_id = run_ladder_game(bot)
+        print(result, "against opponent", opponent_id)
     else:
-        asyncio.run(
-            run_game(
-                maps.get("GoldenWallLE"),
-                [bot, Computer(Race.Random, Difficulty.Hard)],
-                realtime=False,
-                save_replay_as="replay.SC2Replay",
-            )
+        run_game(
+            maps.get("GoldenWallLE"),
+            [bot, Computer(Race.Random, Difficulty.Hard)],
+            realtime=False,
+            save_replay_as="replay.SC2Replay",
         )
 
 

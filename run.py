@@ -62,8 +62,8 @@ def main():
         print(result, "against opponent", opponent_id)
     else:
         run_game(
-            maps.get("GoldenWallLE"),
-            [bot, Computer(Race.Random, Difficulty.Hard)],
+            maps.get("AcropolisAIE"),
+            [bot, Computer(Race.Zerg, Difficulty.VeryHard)],
             realtime=False,
             save_replay_as="replay.SC2Replay",
         )

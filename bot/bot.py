@@ -12,6 +12,8 @@ from sc2.position import Point2
 _CHEESE_DT = "dt_rush"
 _CHEESE_4GATE = "four_gate"
 
+_WORKER_TYPES = {UnitTypeId.DRONE, UnitTypeId.SCV, UnitTypeId.PROBE}
+
 _ARMY_TYPES = {
     UnitTypeId.STALKER,
     UnitTypeId.ZEALOT,
@@ -40,6 +42,14 @@ class CompetitiveBot(BotAI):
         self._cheese_type: str | None = random.choice([
             _CHEESE_DT, _CHEESE_4GATE, None, None,
         ])
+        # Burnysc2's ability data lags behind SC2 game patches.
+        # Any unknown ability ID causes unit.orders to KeyError throughout the library.
+        # Stub them out so they parse cleanly without crashing.
+        if self.game_data.abilities:
+            _stub = next(iter(self.game_data.abilities.values()))
+            for _unknown_id in [4446]:
+                if _unknown_id not in self.game_data.abilities:
+                    self.game_data.abilities[_unknown_id] = _stub
 
     @property
     def _vs_zerg(self) -> bool:
@@ -518,7 +528,7 @@ class CompetitiveBot(BotAI):
     async def _dt_harass(self) -> None:
         # Send each DT directly to enemy workers; if workers unknown, go to their base
         for dt in self.units(UnitTypeId.DARKTEMPLAR).idle:
-            enemy_workers = self.enemy_units.filter(lambda u: u.is_worker)
+            enemy_workers = self.enemy_units.filter(lambda u: u.type_id in _WORKER_TYPES)
             if enemy_workers:
                 dt.attack(enemy_workers.closest_to(dt))
             elif self.enemy_structures:
@@ -536,7 +546,7 @@ class CompetitiveBot(BotAI):
 
     async def _oracle_harassment(self) -> None:
         for oracle in self.units(UnitTypeId.ORACLE).idle:
-            enemy_workers = self.enemy_units.filter(lambda u: u.is_worker)
+            enemy_workers = self.enemy_units.filter(lambda u: u.type_id in _WORKER_TYPES)
             if enemy_workers:
                 oracle.attack(enemy_workers.closest_to(oracle))
             elif self.enemy_structures:

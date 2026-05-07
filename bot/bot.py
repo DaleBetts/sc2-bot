@@ -63,6 +63,7 @@ class CompetitiveBot(BotAI):
         await self._expand()
         await self._attack()
         await self._stalker_blink_micro()
+        await self._stalker_kite()
         if self._cheese_active and self._cheese_type == _CHEESE_DT:
             await self._dt_harass()
         if self._vs_zerg and not self._cheese_active:
@@ -488,6 +489,29 @@ class CompetitiveBot(BotAI):
                 if AbilityId.EFFECT_BLINK_STALKER in abilities:
                     retreat = stalker.position.towards(self.start_location, 8)
                     stalker(AbilityId.EFFECT_BLINK_STALKER, retreat)
+
+    # ── Stalker stutter-step kiting ──────────────────────────────────────────
+
+    async def _stalker_kite(self) -> None:
+        for stalker in self.units(UnitTypeId.STALKER):
+            # Let blink micro handle critically wounded Stalkers
+            total_hp = stalker.health + stalker.shield
+            total_max = stalker.health_max + stalker.shield_max
+            if total_max > 0 and total_hp / total_max < 0.3:
+                continue
+
+            # Only kite when enemies are close enough to matter (just beyond attack range)
+            nearby_enemies = self.enemy_units.closer_than(8, stalker)
+            if not nearby_enemies:
+                continue
+
+            if stalker.weapon_cooldown == 0:
+                # Weapon ready — fire at the nearest threat
+                stalker.attack(nearby_enemies.closest_to(stalker))
+            else:
+                # Weapon cooling — back away from the enemy mass to gain separation
+                retreat = stalker.position.towards(self.start_location, 3)
+                stalker.move(retreat)
 
     # ── DT Rush micro ────────────────────────────────────────────────────────
 

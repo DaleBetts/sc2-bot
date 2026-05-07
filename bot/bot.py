@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import random
+
 from sc2.bot_ai import BotAI
 from sc2.data import Race, Result
 from sc2.ids.ability_id import AbilityId
@@ -7,12 +9,16 @@ from sc2.ids.unit_typeid import UnitTypeId
 from sc2.ids.upgrade_id import UpgradeId
 from sc2.position import Point2
 
+_CHEESE_DT = "dt_rush"
+_CHEESE_4GATE = "four_gate"
+
 _ARMY_TYPES = {
     UnitTypeId.STALKER,
     UnitTypeId.ZEALOT,
     UnitTypeId.COLOSSUS,
     UnitTypeId.IMMORTAL,
     UnitTypeId.ARCHON,
+    UnitTypeId.DARKTEMPLAR,
 }
 
 _ZERG_ARMY_TYPES = _ARMY_TYPES | {
@@ -30,10 +36,19 @@ class CompetitiveBot(BotAI):
 
     async def on_start(self) -> None:
         self.client.game_step = 2
+        # 25% DT rush, 25% 4-gate, 50% standard macro
+        self._cheese_type: str | None = random.choice([
+            _CHEESE_DT, _CHEESE_4GATE, None, None,
+        ])
 
     @property
     def _vs_zerg(self) -> bool:
         return self.enemy_race == Race.Zerg
+
+    @property
+    def _cheese_active(self) -> bool:
+        # Cheese window: first 8 minutes. After that, fall back to standard macro.
+        return self._cheese_type is not None and self.time < 480
 
     async def on_step(self, iteration: int) -> None:
         if iteration == 0:
@@ -48,7 +63,9 @@ class CompetitiveBot(BotAI):
         await self._expand()
         await self._attack()
         await self._stalker_blink_micro()
-        if self._vs_zerg:
+        if self._cheese_active and self._cheese_type == _CHEESE_DT:
+            await self._dt_harass()
+        if self._vs_zerg and not self._cheese_active:
             await self._zerg_micro()
             await self._anti_creep_overlord()
 
@@ -73,6 +90,9 @@ class CompetitiveBot(BotAI):
 
     async def _train_probes(self) -> None:
         worker_cap = min(60, self.townhalls.amount * 22)
+        if self._cheese_active:
+            # Cut probe production during all-ins so minerals flow to units
+            worker_cap = 20 if self._cheese_type == _CHEESE_DT else 18
         for nexus in self.townhalls.ready.idle:
             if self.workers.amount < worker_cap and self.can_afford(UnitTypeId.PROBE) and self.supply_left > 0:
                 nexus.train(UnitTypeId.PROBE)
@@ -107,53 +127,77 @@ class CompetitiveBot(BotAI):
         if not self.structures(UnitTypeId.CYBERNETICSCORE).ready:
             return
 
+        # 4-gate: rush to 4 gateways; DT rush: 2 gateways is enough; standard: scale with bases
+        if self._cheese_active and self._cheese_type == _CHEESE_4GATE:
+            target_gw = 4
+        else:
+            target_gw = min(8, 2 + self.townhalls.amount)
+
         gw_total = (
             self.structures(UnitTypeId.GATEWAY).amount
             + self.structures(UnitTypeId.WARPGATE).amount
             + self.already_pending(UnitTypeId.GATEWAY)
         )
-        target_gw = min(8, 2 + self.townhalls.amount)
         if gw_total < target_gw and self.can_afford(UnitTypeId.GATEWAY):
             await self._place_near(UnitTypeId.GATEWAY, pylon.position)
 
-        if (
-            not self.structures(UnitTypeId.ROBOTICSFACILITY)
-            and not self.already_pending(UnitTypeId.ROBOTICSFACILITY)
-            and self.can_afford(UnitTypeId.ROBOTICSFACILITY)
-        ):
-            await self._place_near(UnitTypeId.ROBOTICSFACILITY, pylon.position)
+        # Skip Robotics during cheese — every mineral goes to gates/units
+        if not self._cheese_active:
+            if (
+                not self.structures(UnitTypeId.ROBOTICSFACILITY)
+                and not self.already_pending(UnitTypeId.ROBOTICSFACILITY)
+                and self.can_afford(UnitTypeId.ROBOTICSFACILITY)
+            ):
+                await self._place_near(UnitTypeId.ROBOTICSFACILITY, pylon.position)
 
-        if (
-            self.structures(UnitTypeId.ROBOTICSFACILITY).ready
-            and not self.structures(UnitTypeId.ROBOTICSBAY)
-            and not self.already_pending(UnitTypeId.ROBOTICSBAY)
-            and self.can_afford(UnitTypeId.ROBOTICSBAY)
-        ):
-            await self._place_near(UnitTypeId.ROBOTICSBAY, pylon.position)
+            if (
+                self.structures(UnitTypeId.ROBOTICSFACILITY).ready
+                and not self.structures(UnitTypeId.ROBOTICSBAY)
+                and not self.already_pending(UnitTypeId.ROBOTICSBAY)
+                and self.can_afford(UnitTypeId.ROBOTICSBAY)
+            ):
+                await self._place_near(UnitTypeId.ROBOTICSBAY, pylon.position)
 
+        # Twilight Council:
+        #   DT rush — build immediately after Cyber Core (no base requirement)
+        #   4-gate  — skip entirely, all money to gates
+        #   standard — requires 2 bases
+        dt_rush_active = self._cheese_active and self._cheese_type == _CHEESE_DT
+        four_gate_active = self._cheese_active and self._cheese_type == _CHEESE_4GATE
+        tc_base_req = 1 if dt_rush_active else 2
         if (
-            self.townhalls.amount >= 2
+            not four_gate_active
+            and self.townhalls.amount >= tc_base_req
             and not self.structures(UnitTypeId.TWILIGHTCOUNCIL)
             and not self.already_pending(UnitTypeId.TWILIGHTCOUNCIL)
             and self.can_afford(UnitTypeId.TWILIGHTCOUNCIL)
         ):
             await self._place_near(UnitTypeId.TWILIGHTCOUNCIL, pylon.position)
 
-        # Forge — earlier vs Zerg for faster weapon upgrades
-        forge_threshold = 1 if self._vs_zerg else 2
-        if (
-            self.townhalls.amount >= forge_threshold
-            and not self.structures(UnitTypeId.FORGE)
-            and not self.already_pending(UnitTypeId.FORGE)
-            and self.can_afford(UnitTypeId.FORGE)
-        ):
-            await self._place_near(UnitTypeId.FORGE, pylon.position)
+        # Dark Shrine — DT rush only
+        if dt_rush_active and self.structures(UnitTypeId.TWILIGHTCOUNCIL).ready:
+            if (
+                not self.structures(UnitTypeId.DARKSHRINE)
+                and not self.already_pending(UnitTypeId.DARKSHRINE)
+                and self.can_afford(UnitTypeId.DARKSHRINE)
+            ):
+                await self._place_near(UnitTypeId.DARKSHRINE, pylon.position)
 
-        if self._vs_zerg:
-            await self._build_zerg_structures(pylon.position)
+        # Skip Forge and Zerg-specific structures during cheese all-in
+        if not self._cheese_active:
+            forge_threshold = 1 if self._vs_zerg else 2
+            if (
+                self.townhalls.amount >= forge_threshold
+                and not self.structures(UnitTypeId.FORGE)
+                and not self.already_pending(UnitTypeId.FORGE)
+                and self.can_afford(UnitTypeId.FORGE)
+            ):
+                await self._place_near(UnitTypeId.FORGE, pylon.position)
+
+            if self._vs_zerg:
+                await self._build_zerg_structures(pylon.position)
 
     async def _build_zerg_structures(self, pylon_pos: Point2) -> None:
-        # Stargate — Oracle Drone harassment then Void Rays vs Corruptors
         if (
             not self.structures(UnitTypeId.STARGATE)
             and not self.already_pending(UnitTypeId.STARGATE)
@@ -161,7 +205,6 @@ class CompetitiveBot(BotAI):
         ):
             await self._place_near(UnitTypeId.STARGATE, pylon_pos)
 
-        # Shield Batteries at natural — essential vs early Roach/Baneling pressure
         if self.townhalls.amount >= 2:
             natural = self.townhalls.furthest_to(self.start_location)
             battery_count = (
@@ -176,7 +219,6 @@ class CompetitiveBot(BotAI):
                     if worker:
                         worker.build(UnitTypeId.SHIELDBATTERY, placement)
 
-        # Templar Archives — High Templar + Psionic Storm vs massed Ling/Hydra
         if (
             self.structures(UnitTypeId.TWILIGHTCOUNCIL).ready
             and not self.structures(UnitTypeId.TEMPLARARCHIVE)
@@ -215,9 +257,10 @@ class CompetitiveBot(BotAI):
 
     async def _produce_army(self) -> None:
         await self._gateway_units()
-        await self._robo_units()
-        if self._vs_zerg and self.structures(UnitTypeId.STARGATE).ready:
-            await self._stargate_units()
+        if not self._cheese_active:
+            await self._robo_units()
+            if self._vs_zerg and self.structures(UnitTypeId.STARGATE).ready:
+                await self._stargate_units()
 
     async def _gateway_units(self) -> None:
         pylons = self.structures(UnitTypeId.PYLON).ready
@@ -225,6 +268,7 @@ class CompetitiveBot(BotAI):
             return
         spawn_near = pylons.closest_to(self.start_location).position.towards(self.start_location, 3)
 
+        dark_shrine_ready = bool(self.structures(UnitTypeId.DARKSHRINE).ready)
         sentry_count = self.units(UnitTypeId.SENTRY).amount + self.already_pending(UnitTypeId.SENTRY)
         ht_count = self.units(UnitTypeId.HIGHTEMPLAR).amount + self.already_pending(UnitTypeId.HIGHTEMPLAR)
         archives_ready = bool(self.structures(UnitTypeId.TEMPLARARCHIVE).ready)
@@ -234,8 +278,20 @@ class CompetitiveBot(BotAI):
                 break
             abilities = await self.get_available_abilities(warpgate)
 
+            # DT rush: DTs first once Dark Shrine is ready
             if (
-                self._vs_zerg
+                self._cheese_active
+                and self._cheese_type == _CHEESE_DT
+                and dark_shrine_ready
+                and AbilityId.WARPGATETRAIN_DARKTEMPLAR in abilities
+                and self.can_afford(UnitTypeId.DARKTEMPLAR)
+            ):
+                placement = await self.find_placement(AbilityId.WARPGATETRAIN_DARKTEMPLAR, spawn_near, placement_step=2)
+                if placement:
+                    warpgate(AbilityId.WARPGATETRAIN_DARKTEMPLAR, placement)
+            elif (
+                not self._cheese_active
+                and self._vs_zerg
                 and archives_ready
                 and ht_count < 4
                 and AbilityId.WARPGATETRAIN_HIGHTEMPLAR in abilities
@@ -249,7 +305,8 @@ class CompetitiveBot(BotAI):
                 if placement:
                     warpgate(AbilityId.WARPGATETRAIN_STALKER, placement)
             elif (
-                self._vs_zerg
+                not self._cheese_active
+                and self._vs_zerg
                 and sentry_count < 3
                 and AbilityId.WARPGATETRAIN_SENTRY in abilities
                 and self.can_afford(UnitTypeId.SENTRY)
@@ -265,19 +322,25 @@ class CompetitiveBot(BotAI):
         for gw in self.structures(UnitTypeId.GATEWAY).ready.idle:
             if self.supply_left <= 0:
                 break
-            if self._vs_zerg and archives_ready and ht_count < 4 and self.can_afford(UnitTypeId.HIGHTEMPLAR):
+            if (
+                self._cheese_active
+                and self._cheese_type == _CHEESE_DT
+                and dark_shrine_ready
+                and self.can_afford(UnitTypeId.DARKTEMPLAR)
+            ):
+                gw.train(UnitTypeId.DARKTEMPLAR)
+            elif not self._cheese_active and self._vs_zerg and archives_ready and ht_count < 4 and self.can_afford(UnitTypeId.HIGHTEMPLAR):
                 gw.train(UnitTypeId.HIGHTEMPLAR)
                 ht_count += 1
             elif self.can_afford(UnitTypeId.STALKER):
                 gw.train(UnitTypeId.STALKER)
-            elif self._vs_zerg and sentry_count < 3 and self.can_afford(UnitTypeId.SENTRY):
+            elif not self._cheese_active and self._vs_zerg and sentry_count < 3 and self.can_afford(UnitTypeId.SENTRY):
                 gw.train(UnitTypeId.SENTRY)
                 sentry_count += 1
             elif self.can_afford(UnitTypeId.ZEALOT):
                 gw.train(UnitTypeId.ZEALOT)
 
     async def _robo_units(self) -> None:
-        # Zerg has no Vikings — cap Colossus higher; add Disruptors for Lurker/Hydra
         colossus_cap = 6 if self._vs_zerg else 4
 
         for robo in self.structures(UnitTypeId.ROBOTICSFACILITY).ready.idle:
@@ -301,7 +364,6 @@ class CompetitiveBot(BotAI):
         for sg in self.structures(UnitTypeId.STARGATE).ready.idle:
             if self.supply_left <= 0:
                 break
-            # First 2 Oracles harass Drones and force Spore Crawlers, delaying Zerg economy
             if oracle_count < 2 and self.can_afford(UnitTypeId.ORACLE):
                 sg.train(UnitTypeId.ORACLE)
                 oracle_count += 1
@@ -334,38 +396,40 @@ class CompetitiveBot(BotAI):
         ):
             self.structures(UnitTypeId.TWILIGHTCOUNCIL).first.research(UpgradeId.CHARGE)
 
-        if (
-            self.structures(UnitTypeId.ROBOTICSBAY).ready
-            and self.already_pending_upgrade(UpgradeId.EXTENDEDTHERMALLANCE) == 0
-            and self.can_afford(UpgradeId.EXTENDEDTHERMALLANCE)
-        ):
-            self.structures(UnitTypeId.ROBOTICSBAY).first.research(UpgradeId.EXTENDEDTHERMALLANCE)
-
-        if self.structures(UnitTypeId.FORGE).ready:
+        if not self._cheese_active:
             if (
-                self.already_pending_upgrade(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL1) == 0
-                and self.can_afford(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL1)
+                self.structures(UnitTypeId.ROBOTICSBAY).ready
+                and self.already_pending_upgrade(UpgradeId.EXTENDEDTHERMALLANCE) == 0
+                and self.can_afford(UpgradeId.EXTENDEDTHERMALLANCE)
             ):
-                self.structures(UnitTypeId.FORGE).first.research(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL1)
-            elif (
-                self.already_pending_upgrade(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL1) == 1
-                and self.already_pending_upgrade(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL2) == 0
-                and self.can_afford(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL2)
-            ):
-                self.structures(UnitTypeId.FORGE).first.research(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL2)
+                self.structures(UnitTypeId.ROBOTICSBAY).first.research(UpgradeId.EXTENDEDTHERMALLANCE)
 
-        # Psionic Storm — essential for dealing with massed Hydra/Ling swarms
-        if (
-            self._vs_zerg
-            and self.structures(UnitTypeId.TEMPLARARCHIVE).ready
-            and self.already_pending_upgrade(UpgradeId.PSISTORMTECH) == 0
-            and self.can_afford(UpgradeId.PSISTORMTECH)
-        ):
-            self.structures(UnitTypeId.TEMPLARARCHIVE).first.research(UpgradeId.PSISTORMTECH)
+            if self.structures(UnitTypeId.FORGE).ready:
+                if (
+                    self.already_pending_upgrade(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL1) == 0
+                    and self.can_afford(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL1)
+                ):
+                    self.structures(UnitTypeId.FORGE).first.research(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL1)
+                elif (
+                    self.already_pending_upgrade(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL1) == 1
+                    and self.already_pending_upgrade(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL2) == 0
+                    and self.can_afford(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL2)
+                ):
+                    self.structures(UnitTypeId.FORGE).first.research(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL2)
+
+            if (
+                self._vs_zerg
+                and self.structures(UnitTypeId.TEMPLARARCHIVE).ready
+                and self.already_pending_upgrade(UpgradeId.PSISTORMTECH) == 0
+                and self.can_afford(UpgradeId.PSISTORMTECH)
+            ):
+                self.structures(UnitTypeId.TEMPLARARCHIVE).first.research(UpgradeId.PSISTORMTECH)
 
     # ── Expansion ─────────────────────────────────────────────────────────────
 
     async def _expand(self) -> None:
+        if self._cheese_active:
+            return  # No expansion during all-in
         target = 1 + (self.workers.amount // 22)
         if (
             self.townhalls.amount < target
@@ -378,6 +442,9 @@ class CompetitiveBot(BotAI):
 
     async def _attack(self) -> None:
         army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
+        # DTs handled by _dt_harass — keep them out of the main army rally logic
+        if self._cheese_active and self._cheese_type == _CHEESE_DT:
+            army_types = army_types - {UnitTypeId.DARKTEMPLAR}
         army = self.units.filter(lambda u: u.type_id in army_types)
 
         if not army:
@@ -389,8 +456,10 @@ class CompetitiveBot(BotAI):
                 unit.attack(near_base.closest_to(unit))
             return
 
+        # 4-gate attacks with 8 units; standard waits for 15
+        army_threshold = 8 if (self._cheese_active and self._cheese_type == _CHEESE_4GATE) else 15
         rally = self.townhalls.random.position.towards(self.game_info.map_center, 15)
-        if army.amount < 15:
+        if army.amount < army_threshold:
             for unit in army.idle:
                 unit.move(rally)
             return
@@ -419,6 +488,19 @@ class CompetitiveBot(BotAI):
                 if AbilityId.EFFECT_BLINK_STALKER in abilities:
                     retreat = stalker.position.towards(self.start_location, 8)
                     stalker(AbilityId.EFFECT_BLINK_STALKER, retreat)
+
+    # ── DT Rush micro ────────────────────────────────────────────────────────
+
+    async def _dt_harass(self) -> None:
+        # Send each DT directly to enemy workers; if workers unknown, go to their base
+        for dt in self.units(UnitTypeId.DARKTEMPLAR).idle:
+            enemy_workers = self.enemy_units.filter(lambda u: u.is_worker)
+            if enemy_workers:
+                dt.attack(enemy_workers.closest_to(dt))
+            elif self.enemy_structures:
+                dt.attack(self.enemy_structures.closest_to(dt))
+            elif self.enemy_start_locations:
+                dt.move(self.enemy_start_locations[0])
 
     # ── Zerg-specific behaviors ───────────────────────────────────────────────
 
@@ -461,7 +543,6 @@ class CompetitiveBot(BotAI):
                 disruptor(AbilityId.EFFECT_PURIFICATIONNOVA, nearby_enemies.center)
 
     async def _archon_merge(self) -> None:
-        # Merge depleted High Templars into Archons — Archons are excellent vs Zerg
         low_energy_hts = [ht for ht in self.units(UnitTypeId.HIGHTEMPLAR) if ht.energy < 50]
         while len(low_energy_hts) >= 2:
             ht1, ht2 = low_energy_hts.pop(0), low_energy_hts.pop(0)
@@ -473,7 +554,6 @@ class CompetitiveBot(BotAI):
                 ht2.move(ht1.position)
 
     async def _anti_creep_overlord(self) -> None:
-        # Deny vision and slow creep spread by targeting nearby Overlords with idle Stalkers
         overlords = self.enemy_units.filter(lambda u: u.type_id == UnitTypeId.OVERLORD)
         if overlords:
             for stalker in self.units(UnitTypeId.STALKER).idle[:3]:

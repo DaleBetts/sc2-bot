@@ -35,7 +35,7 @@ def run_ladder_game(bot: Bot):
         portconfig.server = [ports[1], ports[2]]
         portconfig.players = [[ports[3], ports[4]]]
 
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         _join_ladder_game(host, args.GamePort, bot, args.RealTime, portconfig)
     )
     return result, args.OpponentId

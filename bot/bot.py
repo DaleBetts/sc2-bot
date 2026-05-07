@@ -241,10 +241,10 @@ class CompetitiveBot(BotAI):
         # Extended Thermal Lance — doubles Colossus effective range
         if (
             self.structures(UnitTypeId.ROBOTICSBAY).ready
-            and self.already_pending_upgrade(UpgradeId.EXTENDEDTHERMALANCE) == 0
-            and self.can_afford(UpgradeId.EXTENDEDTHERMALANCE)
+            and self.already_pending_upgrade(UpgradeId.EXTENDEDTHERMALLANCE) == 0
+            and self.can_afford(UpgradeId.EXTENDEDTHERMALLANCE)
         ):
-            self.structures(UnitTypeId.ROBOTICSBAY).first.research(UpgradeId.EXTENDEDTHERMALANCE)
+            self.structures(UnitTypeId.ROBOTICSBAY).first.research(UpgradeId.EXTENDEDTHERMALLANCE)
 
         # +1/+2 Ground Weapons
         if self.structures(UnitTypeId.FORGE).ready:

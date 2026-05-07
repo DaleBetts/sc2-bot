@@ -1,0 +1,7 @@
+Bot:
+  Name: PythonBot          # Change this to your desired bot name on aiarena.net
+  Race: Protoss
+  Type: python
+  RootPath: "/"
+  FileName: "run.py"
+  AutoUploadToAiarena: False   # Set to True once AIARENA_API_TOKEN and AIARENA_BOT_ID secrets are set

@@ -9,6 +9,8 @@ from sc2.ids.unit_typeid import UnitTypeId
 from sc2.ids.upgrade_id import UpgradeId
 from sc2.position import Point2
 
+from bot.logger import GameLogger
+
 _CHEESE_DT = "dt_rush"
 _CHEESE_4GATE = "four_gate"
 
@@ -42,6 +44,17 @@ class CompetitiveBot(BotAI):
         self._cheese_type: str | None = random.choice([
             _CHEESE_DT, _CHEESE_4GATE, None, None,
         ])
+        self._scout_sent: bool = False
+        self._last_log_minute: int = -1
+        self._logger = GameLogger()
+        self._logger.log(
+            "game_start",
+            game_time=0.0,
+            opponent_id=getattr(self, "opponent_id", "unknown"),
+            opponent_race=self.enemy_race.name,
+            map_name=self.game_info.map_name,
+            strategy=self._cheese_type or "standard_macro",
+        )
         # Burnysc2's ability data lags behind SC2 game patches.
         # Any unknown ability ID causes unit.orders to KeyError throughout the library.
         # Stub them out so they parse cleanly without crashing.
@@ -64,9 +77,12 @@ class CompetitiveBot(BotAI):
         if iteration == 0:
             await self.chat_send("gl hf - En Taro Artanis!")
         await self.distribute_workers()
+        self._maybe_log_periodic()
+        await self._scout()
         await self._build_pylons()
         await self._train_probes()
         await self._build_structures()
+        await self._build_cannons()
         await self._morph_warpgates()
         await self._produce_army()
         await self._research_upgrades()
@@ -80,13 +96,46 @@ class CompetitiveBot(BotAI):
             await self._zerg_micro()
             await self._anti_creep_overlord()
 
+    # ── Periodic logging ──────────────────────────────────────────────────────
+
+    def _maybe_log_periodic(self) -> None:
+        minute = int(self.time // 60)
+        if minute <= self._last_log_minute:
+            return
+        self._last_log_minute = minute
+        army = self.units.filter(lambda u: u.type_id in _ARMY_TYPES)
+        self._logger.log(
+            "periodic",
+            game_time=self.time,
+            minute=minute,
+            workers=self.workers.amount,
+            bases=self.townhalls.amount,
+            supply_used=self.supply_used,
+            supply_cap=self.supply_cap,
+            supply_left=self.supply_left,
+            minerals=self.minerals,
+            vespene=self.vespene,
+            army_count=army.amount,
+            cheese_active=self._cheese_active,
+        )
+
+    # ── Scouting ──────────────────────────────────────────────────────────────
+
+    async def _scout(self) -> None:
+        if self._scout_sent or self.workers.amount < 14:
+            return
+        probe = self.workers.closest_to(self.start_location)
+        if probe:
+            probe.move(self.enemy_start_locations[0])
+            self._scout_sent = True
+
     # ── Supply ───────────────────────────────────────────────────────────────
 
     async def _build_pylons(self) -> None:
         if (
             self.supply_cap < 200
-            and self.supply_left < 5
-            and self.already_pending(UnitTypeId.PYLON) < 2
+            and self.supply_left < 8
+            and self.already_pending(UnitTypeId.PYLON) < 3
             and self.can_afford(UnitTypeId.PYLON)
             and self.townhalls
         ):
@@ -237,6 +286,22 @@ class CompetitiveBot(BotAI):
             and self.can_afford(UnitTypeId.TEMPLARARCHIVE)
         ):
             await self._place_near(UnitTypeId.TEMPLARARCHIVE, pylon_pos)
+
+    async def _build_cannons(self) -> None:
+        if not self.structures(UnitTypeId.FORGE).ready or self.townhalls.amount < 2:
+            return
+        natural = self.townhalls.furthest_to(self.start_location)
+        cannon_count = (
+            self.structures(UnitTypeId.PHOTONCANNON).closer_than(15, natural).amount
+            + self.already_pending(UnitTypeId.PHOTONCANNON)
+        )
+        if cannon_count < 2 and self.can_afford(UnitTypeId.PHOTONCANNON):
+            pos = natural.position.towards(self.start_location, 4)
+            placement = await self.find_placement(UnitTypeId.PHOTONCANNON, pos, placement_step=2)
+            if placement:
+                worker = self.select_build_worker(placement)
+                if worker:
+                    worker.build(UnitTypeId.PHOTONCANNON, placement)
 
     async def _build_assimilators(self) -> None:
         for nexus in self.townhalls.ready:
@@ -427,6 +492,12 @@ class CompetitiveBot(BotAI):
                     and self.can_afford(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL2)
                 ):
                     self.structures(UnitTypeId.FORGE).first.research(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL2)
+                elif (
+                    self.already_pending_upgrade(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL2) == 1
+                    and self.already_pending_upgrade(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL3) == 0
+                    and self.can_afford(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL3)
+                ):
+                    self.structures(UnitTypeId.FORGE).first.research(UpgradeId.PROTOSSGROUNDWEAPONSLEVEL3)
 
             if (
                 self._vs_zerg
@@ -469,7 +540,9 @@ class CompetitiveBot(BotAI):
 
         # 4-gate attacks with 8 units; standard waits for 15
         army_threshold = 8 if (self._cheese_active and self._cheese_type == _CHEESE_4GATE) else 15
-        rally = self.townhalls.random.position.towards(self.game_info.map_center, 15)
+        if not self.townhalls:
+            return
+        rally = self.townhalls.closest_to(self.start_location).position.towards(self.game_info.map_center, 15)
         if army.amount < army_threshold:
             for unit in army.idle:
                 unit.move(rally)
@@ -596,4 +669,14 @@ class CompetitiveBot(BotAI):
                     stalker.attack(closest)
 
     async def on_end(self, game_result: Result) -> None:
+        self._logger.log(
+            "game_end",
+            game_time=self.time,
+            result=game_result.name,
+            final_workers=self.workers.amount,
+            final_bases=self.townhalls.amount,
+            final_supply=self.supply_used,
+            strategy=self._cheese_type or "standard_macro",
+            opponent_race=self.enemy_race.name,
+        )
         print(f"Game ended: {game_result}")

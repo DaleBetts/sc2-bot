@@ -1,0 +1,66 @@
+name: Daily Log Download and Bot Improvement
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 06:00 UTC every day
+  workflow_dispatch:       # allow manual trigger from the Actions tab
+
+jobs:
+  improve-bot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # needed to push the commit back
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install script dependencies
+        run: pip install requests anthropic
+
+      # ── Step 1: pull log files out of the bot's /data zip ──────────────────
+      - name: Download logs from AI Arena
+        env:
+          AIARENA_API_TOKEN: ${{ secrets.AIARENA_API_TOKEN }}
+          AIARENA_BOT_ID: ${{ secrets.AIARENA_BOT_ID }}
+        run: python scripts/download_logs.py
+
+      # ── Step 2: analyse and patch bot.py ───────────────────────────────────
+      - name: Analyse logs and improve bot
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python scripts/analyze_and_improve.py
+
+      # ── Step 3: commit any changed files ───────────────────────────────────
+      - name: Detect changes
+        id: diff
+        run: |
+          git diff --quiet && echo "changed=false" >> "$GITHUB_OUTPUT" \
+                           || echo "changed=true"  >> "$GITHUB_OUTPUT"
+
+      - name: Commit logs and improvements
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add logs/ bot/bot.py
+          git commit -m "chore: daily log sync and bot improvement [skip ci]"
+          git push
+
+      # ── Step 4: re-upload the improved bot if AUTO_UPLOAD is enabled ───────
+      - name: Re-package bot zip
+        if: steps.diff.outputs.changed == 'true' && vars.AUTO_UPLOAD == 'true'
+        run: python create_ladder_zip.py
+
+      - name: Upload improved bot to AI Arena
+        if: steps.diff.outputs.changed == 'true' && vars.AUTO_UPLOAD == 'true'
+        run: |
+          curl -s -X PATCH \
+            -H "Authorization: Token ${{ secrets.AIARENA_API_TOKEN }}" \
+            -F "bot_zip=@bot.zip" \
+            "https://aiarena.net/api/bots/${{ secrets.AIARENA_BOT_ID }}/" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print('Upload OK — bot:', d.get('name'))"

@@ -81,12 +81,12 @@ class CompetitiveBot(BotAI):
         await self._scout()
         await self._build_pylons()
         await self._train_probes()
+        await self._expand()
         await self._build_structures()
         await self._build_cannons()
         await self._morph_warpgates()
         await self._produce_army()
         await self._research_upgrades()
-        await self._expand()
         await self._attack()
         await self._stalker_blink_micro()
         await self._stalker_kite()
@@ -512,7 +512,7 @@ class CompetitiveBot(BotAI):
     async def _expand(self) -> None:
         if self._cheese_active:
             return  # No expansion during all-in
-        target = 1 + (self.workers.amount // 22)
+        target = 1 + (self.workers.amount // 16)
         if (
             self.townhalls.amount < target
             and not self.already_pending(UnitTypeId.NEXUS)

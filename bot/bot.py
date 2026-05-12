@@ -634,11 +634,11 @@ class CompetitiveBot(BotAI):
             if ht.energy < 75:
                 continue
             abilities = await self.get_available_abilities(ht)
-            if AbilityId.EFFECT_PSISTORM not in abilities:
+            if AbilityId.PSISTORM_PSISTORM not in abilities:
                 continue
             nearby_enemies = self.enemy_units.closer_than(9, ht)
             if nearby_enemies.amount >= 5:
-                ht(AbilityId.EFFECT_PSISTORM, nearby_enemies.center)
+                ht(AbilityId.PSISTORM_PSISTORM, nearby_enemies.center)
 
     async def _disruptor_nova(self) -> None:
         for disruptor in self.units(UnitTypeId.DISRUPTOR).idle:

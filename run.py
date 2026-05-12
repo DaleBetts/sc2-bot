@@ -43,14 +43,15 @@ def run_ladder_game(bot: Bot):
 
 async def _join_ladder_game(host, port, bot: Bot, realtime: bool, portconfig):
     ws_url = f"ws://{host}:{port}/sc2api"
-    ws = await aiohttp.ClientSession().ws_connect(ws_url, timeout=120)
-    client = Client(ws)
-    try:
-        result = await _play_game(bot, client, realtime, portconfig)
-    except ConnectionAlreadyClosedError:
-        result = None
-    finally:
-        await ws.close()
+    async with aiohttp.ClientSession() as session:
+        ws = await session.ws_connect(ws_url, timeout=aiohttp.ClientWSTimeout(ws_close=120))
+        client = Client(ws)
+        try:
+            result = await _play_game(bot, client, realtime, portconfig)
+        except ConnectionAlreadyClosedError:
+            result = None
+        finally:
+            await ws.close()
     return result
 
 

@@ -1,0 +1,3 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "53de9e48-a920-4efc-8677-645185e89f5b", "opponent_race": "Random", "map_name": "Incorporeal AIE", "strategy": "standard_macro"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "game_end", "game_time": 0.0, "wall_s": 0.9, "result": "Victory", "final_workers": 12, "final_bases": 1, "final_supply": 12, "strategy": "standard_macro", "opponent_race": "Random"}

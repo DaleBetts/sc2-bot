@@ -198,7 +198,11 @@ class CompetitiveBot(BotAI):
             + self.structures(UnitTypeId.WARPGATE).amount
             + self.already_pending(UnitTypeId.GATEWAY)
         )
-        if gw_total < target_gw and self.can_afford(UnitTypeId.GATEWAY):
+        # Also build extra gateways to spend excess minerals when not cheese
+        effective_target = target_gw
+        if not self._cheese_active and self.minerals > 800:
+            effective_target = min(16, gw_total + 2)
+        if gw_total < effective_target and self.can_afford(UnitTypeId.GATEWAY):
             await self._place_near(UnitTypeId.GATEWAY, pylon.position)
 
         # Skip Robotics during cheese — every mineral goes to gates/units
@@ -513,8 +517,17 @@ class CompetitiveBot(BotAI):
         if self._cheese_active:
             return  # No expansion during all-in
         target = 1 + (self.workers.amount // 16)
+        # Require some defensive infrastructure before taking a second base
+        has_defense = (
+            self.structures(UnitTypeId.FORGE).ready
+            or self.already_pending(UnitTypeId.FORGE)
+            or self.structures(UnitTypeId.SHIELDBATTERY).amount > 0
+            or self.already_pending(UnitTypeId.SHIELDBATTERY)
+            or self.townhalls.amount >= 2
+        )
         if (
             self.townhalls.amount < target
+            and has_defense
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
         ):
@@ -538,8 +551,8 @@ class CompetitiveBot(BotAI):
                 unit.attack(near_base.closest_to(unit))
             return
 
-        # 4-gate attacks with 8 units; standard waits for 15
-        army_threshold = 8 if (self._cheese_active and self._cheese_type == _CHEESE_4GATE) else 15
+        # 4-gate attacks with 8 units; standard attacks with 10 units
+        army_threshold = 8 if (self._cheese_active and self._cheese_type == _CHEESE_4GATE) else 10
         if not self.townhalls:
             return
         rally = self.townhalls.closest_to(self.start_location).position.towards(self.game_info.map_center, 15)

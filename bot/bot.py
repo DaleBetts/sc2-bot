@@ -149,7 +149,7 @@ class CompetitiveBot(BotAI):
     # ── Workers ───────────────────────────────────────────────────────────────
 
     async def _train_probes(self) -> None:
-        worker_cap = min(60, self.townhalls.amount * 22)
+        worker_cap = min(60, max(40, self.townhalls.amount * 22))
         if self._cheese_active:
             # Cut probe production during all-ins so minerals flow to units
             worker_cap = 20 if self._cheese_type == _CHEESE_DT else 18
@@ -346,7 +346,10 @@ class CompetitiveBot(BotAI):
         pylons = self.structures(UnitTypeId.PYLON).ready
         if not pylons:
             return
-        spawn_near = pylons.closest_to(self.start_location).position.towards(self.start_location, 3)
+        if self._cheese_active and self._cheese_type == _CHEESE_DT:
+            spawn_near = pylons.closest_to(self.start_location).position.towards(self.game_info.map_center, 8)
+        else:
+            spawn_near = pylons.closest_to(self.start_location).position.towards(self.start_location, 3)
 
         dark_shrine_ready = bool(self.structures(UnitTypeId.DARKSHRINE).ready)
         sentry_count = self.units(UnitTypeId.SENTRY).amount + self.already_pending(UnitTypeId.SENTRY)
@@ -518,12 +521,19 @@ class CompetitiveBot(BotAI):
             return  # No expansion during all-in
         target = 1 + (self.workers.amount // 16)
         # Require some defensive infrastructure before taking a second base
+        gw_count = (
+            self.structures(UnitTypeId.GATEWAY).amount
+            + self.structures(UnitTypeId.WARPGATE).amount
+        )
+        army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
+        army_size = self.units.filter(lambda u: u.type_id in army_types).amount
         has_defense = (
             self.structures(UnitTypeId.FORGE).ready
             or self.already_pending(UnitTypeId.FORGE)
             or self.structures(UnitTypeId.SHIELDBATTERY).amount > 0
             or self.already_pending(UnitTypeId.SHIELDBATTERY)
             or self.townhalls.amount >= 2
+            or (gw_count >= 2 and army_size >= 4)
         )
         if (
             self.townhalls.amount < target

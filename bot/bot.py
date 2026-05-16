@@ -134,8 +134,8 @@ class CompetitiveBot(BotAI):
     async def _build_pylons(self) -> None:
         if (
             self.supply_cap < 200
-            and self.supply_left < 8
-            and self.already_pending(UnitTypeId.PYLON) < 3
+            and self.supply_left < 12
+            and self.already_pending(UnitTypeId.PYLON) < 4
             and self.can_afford(UnitTypeId.PYLON)
             and self.townhalls
         ):
@@ -528,12 +528,13 @@ class CompetitiveBot(BotAI):
         army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
         army_size = self.units.filter(lambda u: u.type_id in army_types).amount
         has_defense = (
-            self.structures(UnitTypeId.FORGE).ready
+            self.townhalls.amount >= 2
+            or (gw_count >= 2 and army_size >= 4)
+            or (gw_count >= 1 and army_size >= 8)
+            or self.structures(UnitTypeId.FORGE).ready
             or self.already_pending(UnitTypeId.FORGE)
             or self.structures(UnitTypeId.SHIELDBATTERY).amount > 0
             or self.already_pending(UnitTypeId.SHIELDBATTERY)
-            or self.townhalls.amount >= 2
-            or (gw_count >= 2 and army_size >= 4)
         )
         if (
             self.townhalls.amount < target
@@ -561,8 +562,8 @@ class CompetitiveBot(BotAI):
                 unit.attack(near_base.closest_to(unit))
             return
 
-        # 4-gate attacks with 8 units; standard attacks with 10 units
-        army_threshold = 8 if (self._cheese_active and self._cheese_type == _CHEESE_4GATE) else 10
+        # 4-gate attacks with 8 units; standard attacks with 6 units to apply early pressure
+        army_threshold = 8 if (self._cheese_active and self._cheese_type == _CHEESE_4GATE) else 6
         if not self.townhalls:
             return
         rally = self.townhalls.closest_to(self.start_location).position.towards(self.game_info.map_center, 15)

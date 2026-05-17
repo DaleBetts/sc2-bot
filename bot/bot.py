@@ -134,8 +134,8 @@ class CompetitiveBot(BotAI):
     async def _build_pylons(self) -> None:
         if (
             self.supply_cap < 200
-            and self.supply_left < 12
-            and self.already_pending(UnitTypeId.PYLON) < 4
+            and self.supply_left < 16
+            and self.already_pending(UnitTypeId.PYLON) < 6
             and self.can_afford(UnitTypeId.PYLON)
             and self.townhalls
         ):
@@ -191,7 +191,7 @@ class CompetitiveBot(BotAI):
         if self._cheese_active and self._cheese_type == _CHEESE_4GATE:
             target_gw = 4
         else:
-            target_gw = min(8, 2 + self.townhalls.amount)
+            target_gw = min(8, 3 + self.townhalls.amount)
 
         gw_total = (
             self.structures(UnitTypeId.GATEWAY).amount
@@ -529,8 +529,9 @@ class CompetitiveBot(BotAI):
         army_size = self.units.filter(lambda u: u.type_id in army_types).amount
         has_defense = (
             self.townhalls.amount >= 2
-            or (gw_count >= 2 and army_size >= 4)
-            or (gw_count >= 1 and army_size >= 8)
+            or (gw_count >= 1 and army_size >= 4)
+            or (gw_count >= 2 and army_size >= 2)
+            or army_size >= 6
             or self.structures(UnitTypeId.FORGE).ready
             or self.already_pending(UnitTypeId.FORGE)
             or self.structures(UnitTypeId.SHIELDBATTERY).amount > 0

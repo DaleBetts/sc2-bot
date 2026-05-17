@@ -1,0 +1,8 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "65242eb6-0542-4f5c-b38d-9a76703da137", "opponent_race": "Protoss", "map_name": "Ley Lines AIE", "strategy": "standard_macro"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 60.0, "wall_s": 6.5, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 31, "supply_left": 14, "minerals": 35, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 120.0, "wall_s": 17.3, "minute": 2, "workers": 19, "bases": 1, "supply_used": 24, "supply_cap": 39, "supply_left": 15, "minerals": 245, "vespene": 84, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 180.0, "wall_s": 31.0, "minute": 3, "workers": 18, "bases": 1, "supply_used": 22, "supply_cap": 55, "supply_left": 33, "minerals": 85, "vespene": 114, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 240.0, "wall_s": 86.0, "minute": 4, "workers": 14, "bases": 1, "supply_used": 15, "supply_cap": 39, "supply_left": 24, "minerals": 55, "vespene": 56, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 300.0, "wall_s": 112.7, "minute": 5, "workers": 3, "bases": 1, "supply_used": 4, "supply_cap": 15, "supply_left": 11, "minerals": 40, "vespene": 56, "army_count": 0, "cheese_active": false}
+{"event": "game_end", "game_time": 353.2, "wall_s": 126.8, "result": "Defeat", "final_workers": 3, "final_bases": 0, "final_supply": 3, "strategy": "standard_macro", "opponent_race": "Protoss"}

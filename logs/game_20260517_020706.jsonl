@@ -1,0 +1,9 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "b01e84e6-cfcd-4951-b5af-089c73ec8cc2", "opponent_race": "Random", "map_name": "Persephone AIE", "strategy": "standard_macro"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 60.0, "wall_s": 11.0, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 31, "supply_left": 14, "minerals": 40, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 120.0, "wall_s": 22.9, "minute": 2, "workers": 19, "bases": 1, "supply_used": 24, "supply_cap": 39, "supply_left": 15, "minerals": 190, "vespene": 96, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 180.0, "wall_s": 37.6, "minute": 3, "workers": 24, "bases": 1, "supply_used": 33, "supply_cap": 39, "supply_left": 6, "minerals": 45, "vespene": 54, "army_count": 1, "cheese_active": false}
+{"event": "periodic", "game_time": 240.0, "wall_s": 56.3, "minute": 4, "workers": 29, "bases": 1, "supply_used": 46, "supply_cap": 55, "supply_left": 9, "minerals": 45, "vespene": 120, "army_count": 3, "cheese_active": false}
+{"event": "periodic", "game_time": 300.0, "wall_s": 82.7, "minute": 5, "workers": 32, "bases": 1, "supply_used": 47, "supply_cap": 79, "supply_left": 32, "minerals": 70, "vespene": 136, "army_count": 3, "cheese_active": false}
+{"event": "periodic", "game_time": 360.0, "wall_s": 114.0, "minute": 6, "workers": 28, "bases": 1, "supply_used": 37, "supply_cap": 23, "supply_left": -14, "minerals": 55, "vespene": 186, "army_count": 2, "cheese_active": false}
+{"event": "game_end", "game_time": 391.0, "wall_s": 128.9, "result": "Defeat", "final_workers": 0, "final_bases": 0, "final_supply": 0, "strategy": "standard_macro", "opponent_race": "Zerg"}

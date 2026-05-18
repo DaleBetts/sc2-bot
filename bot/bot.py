@@ -152,7 +152,14 @@ class CompetitiveBot(BotAI):
         worker_cap = min(60, max(40, self.townhalls.amount * 22))
         if self._cheese_active:
             # Cut probe production during all-ins so minerals flow to units
-            worker_cap = 20 if self._cheese_type == _CHEESE_DT else 18
+            # For DT rush, only cut workers once the Dark Shrine is actually ready and producing DTs
+            dark_shrine_done = bool(self.structures(UnitTypeId.DARKSHRINE).ready)
+            if self._cheese_type == _CHEESE_DT and not dark_shrine_done:
+                worker_cap = 22
+            elif self._cheese_type == _CHEESE_DT:
+                worker_cap = 20
+            else:
+                worker_cap = 18
         for nexus in self.townhalls.ready.idle:
             if self.workers.amount < worker_cap and self.can_afford(UnitTypeId.PROBE) and self.supply_left > 0:
                 nexus.train(UnitTypeId.PROBE)
@@ -529,9 +536,10 @@ class CompetitiveBot(BotAI):
         army_size = self.units.filter(lambda u: u.type_id in army_types).amount
         has_defense = (
             self.townhalls.amount >= 2
-            or (gw_count >= 1 and army_size >= 4)
-            or (gw_count >= 2 and army_size >= 2)
-            or army_size >= 6
+            or (gw_count >= 1 and army_size >= 2)
+            or (gw_count >= 2 and army_size >= 1)
+            or army_size >= 4
+            or self.time > 420
             or self.structures(UnitTypeId.FORGE).ready
             or self.already_pending(UnitTypeId.FORGE)
             or self.structures(UnitTypeId.SHIELDBATTERY).amount > 0
@@ -563,8 +571,13 @@ class CompetitiveBot(BotAI):
                 unit.attack(near_base.closest_to(unit))
             return
 
-        # 4-gate attacks with 8 units; standard attacks with 6 units to apply early pressure
-        army_threshold = 8 if (self._cheese_active and self._cheese_type == _CHEESE_4GATE) else 6
+        # 4-gate attacks with 8 units; standard attacks with 4 units to apply early pressure; force attack after 10 min
+        if self._cheese_active and self._cheese_type == _CHEESE_4GATE:
+            army_threshold = 8
+        elif not self._cheese_active and self.time > 600:
+            army_threshold = 4
+        else:
+            army_threshold = 6
         if not self.townhalls:
             return
         rally = self.townhalls.closest_to(self.start_location).position.towards(self.game_info.map_center, 15)

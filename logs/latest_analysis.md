@@ -1,22 +1,22 @@
 # Bot Analysis Report
 
-**Win rate:** 50.7% (69W / 56L over 136 games)
+**Win rate:** 50.9% (81W / 66L over 159 games)
 
 **By race:**
-- Zerg: 25W / 19L  avg game 751s
-- Protoss: 24W / 18L  avg game 794s
-- Random: 10W / 7L  avg game 580s
-- Terran: 10W / 12L  avg game 748s
+- Zerg: 30W / 22L  avg game 716s
+- Protoss: 28W / 21L  avg game 766s
+- Random: 10W / 8L  avg game 575s
+- Terran: 13W / 15L  avg game 713s
 
 **By strategy:**
-- standard_macro: 25W / 43L
-- dt_rush: 26W / 7L
-- four_gate: 18W / 6L
+- standard_macro: 27W / 47L
+- dt_rush: 32W / 13L
+- four_gate: 22W / 6L
 
 **Analysis:**
-Standard macro games are losing at a 43/25 rate (63% loss rate), while cheese strategies win reliably. The timelines reveal three critical issues: (1) Game 1 shows supply_cap dropping to 23 at t=360s (supply blocked with 28 workers), causing army and worker production to collapse; (2) Games 2, 6 show the bot plateaus at 1 base for 10+ minutes with no expansion despite having 40 workers and 87 supply cap, so it never takes a second base; (3) Game 8 ends at t=300s with supply=16/15 and 0 army, suggesting an early aggression/bio push killed workers before any defense was established, and the single-base standard macro leaves no economic buffer to recover.
+The standard_macro strategy has a catastrophic 36% win rate (27W/47L) while cheese strategies perform well (DT rush 71%, 4-gate 79%). In standard_macro losses (Games 3, 6, 7), the bot never expands beyond 1 base despite having 40 workers, starving its army at only 9-13 supply of army units while supply caps sit at 87-167. The single-base constraint means the bot eventually gets overwhelmed by mid-game timing attacks. Additionally, in Game 2 (DT rush defeat), the bot was still on 1 base when wiped at t=480s, and in Games 6/7 (DT/standard defeats), the army collapses around t=900s suggest the bot fails to rebuild or defend after losing its army because it has no economy redundancy from a second base.
 
 ## Applied Improvements
-- Increase pylon build-ahead threshold from 12 to 16 supply left and raise max pending pylons from 4 to 6, preventing the supply blocks seen in Game 1 where supply_cap crashed to 23 mid-game
-- Loosen the expansion defense requirement so the bot expands after 1 gateway and 4 army units (instead of requiring 2 gateways and 4 army), fixing the chronic single-base stagnation seen in Games 2 and 6 where 40 workers sat on 1 base for 10+ minutes
-- Build a second gateway immediately after Cybernetics Core even during standard macro (target_gw minimum raised from 2 to 3 for non-cheese), so the bot has faster army production to defend early pressure like the Game 8 Terran bio that wiped workers at t=300s before any army existed
+- Fix expansion logic: the has_defense check is too permissive but the real blocker is that target = 1 + (workers // 16) with 40 workers only targets 3 bases, yet the bot stays on 1 base in all observed games — the issue is the has_defense condition combined with army_size threshold; lower the army threshold to 2 and add a time-based override after 7 minutes to force expansion
+- Fix the DT rush transition: after the cheese window expires (t>=480), the bot has 20 workers and 1 base with no macro infrastructure; add a post-cheese recovery path in _train_probes that ramps worker cap back up to 40 once cheese_active is false, already handled by the else branch — but the real fix is to not hard-cap workers at 20 during DT rush after the dark shrine is already built and DTs are on the field, reducing the window from 480s to after dark shrine is ready
+- Fix army attack threshold: standard_macro games show army sitting idle at rally point (9 units for many minutes in Games 3/6/7) because the threshold is 6 but army never pushes; reduce attack threshold to 4 for standard macro and add a time-based forced attack after 10 minutes to prevent indefinite stalling on one base with no aggression

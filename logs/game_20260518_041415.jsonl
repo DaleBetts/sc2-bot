@@ -1,0 +1,6 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "65242eb6-0542-4f5c-b38d-9a76703da137", "opponent_race": "Protoss", "map_name": "Ultralove AIE", "strategy": "four_gate"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 11.3, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 31, "supply_left": 14, "minerals": 85, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 25.1, "minute": 2, "workers": 18, "bases": 1, "supply_used": 20, "supply_cap": 55, "supply_left": 35, "minerals": 380, "vespene": 32, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 52.8, "minute": 3, "workers": 18, "bases": 1, "supply_used": 21, "supply_cap": 47, "supply_left": 26, "minerals": 460, "vespene": 124, "army_count": 0, "cheese_active": true}
+{"event": "game_end", "game_time": 218.0, "wall_s": 98.9, "result": "Victory", "final_workers": 11, "final_bases": 1, "final_supply": 17, "strategy": "four_gate", "opponent_race": "Protoss"}

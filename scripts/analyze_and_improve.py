@@ -3,17 +3,20 @@
 
 Workflow:
   1. Load all game_*.jsonl files from logs/
-  2. Compute win/loss stats broken down by race and strategy
-  3. Send stats + recent game timelines + full bot source to Claude
+  2. Compute win/loss stats for all-time AND the last RECENT_WINDOW games
+  3. Send both stat sets + recent game timelines + improvement history + full
+     bot source to Claude, asking it to focus on the recent games
   4. Claude returns up to 3 surgical old_code → new_code patches
   5. Each patch is applied only if old_code appears verbatim and the result
      passes a Python syntax check
-  6. Writes logs/latest_analysis.md with findings
+  6. Applied improvements are recorded in logs/improvement_history.jsonl
+  7. Writes logs/latest_analysis.md with findings
 
 Requires env var:
   ANTHROPIC_API_KEY
 
-Exits 0 with no changes when win rate ≥ 60% or no games are logged yet.
+Exits 0 with no changes when BOTH all-time and recent win rates ≥ 60%,
+or fewer than MIN_GAMES are logged.
 """
 from __future__ import annotations
 
@@ -21,16 +24,18 @@ import json
 import subprocess
 import sys
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
-from textwrap import indent
 
 import anthropic
 
 LOGS_DIR = Path(__file__).parent.parent / "logs"
 BOT_FILE = Path(__file__).parent.parent / "bot" / "bot.py"
+HISTORY_FILE = LOGS_DIR / "improvement_history.jsonl"
 MODEL = "claude-sonnet-4-6"
-WIN_RATE_THRESHOLD = 60.0  # skip improvement run if already winning this % of games
+WIN_RATE_THRESHOLD = 60.0  # skip if BOTH all-time and recent WR exceed this
 MIN_GAMES = 5              # need at least this many completed games before analysing
+RECENT_WINDOW = 10         # number of recent games to focus analysis on
 
 
 # ── data loading ──────────────────────────────────────────────────────────────
@@ -63,11 +68,36 @@ def load_games() -> list[dict]:
                 game["final_bases"] = e.get("final_bases", 0)
                 game["final_supply"] = e.get("final_supply", 0)
 
-        # Only include games that actually finished
         if "result" in game:
             games.append(game)
 
     return games
+
+
+def load_improvement_history() -> list[dict]:
+    if not HISTORY_FILE.exists():
+        return []
+    history = []
+    for line in HISTORY_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line:
+            try:
+                history.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return history
+
+
+def record_improvement(description: str, total_games: int, win_rate: float) -> None:
+    LOGS_DIR.mkdir(exist_ok=True)
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "description": description,
+        "games_at_time": total_games,
+        "win_rate_at_time": win_rate,
+    }
+    with HISTORY_FILE.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
 
 
 # ── stats ─────────────────────────────────────────────────────────────────────
@@ -95,7 +125,6 @@ def compute_stats(games: list[dict]) -> dict:
 
         by_race[race]["avg_duration"].append(duration)
 
-    # Compute average game durations
     for race_data in by_race.values():
         durations = race_data.pop("avg_duration")
         race_data["avg_duration_s"] = round(sum(durations) / len(durations)) if durations else 0
@@ -125,17 +154,42 @@ def build_timeline(game: dict) -> str:
 
 # ── Claude interaction ────────────────────────────────────────────────────────
 
-def build_prompt(stats: dict, recent_games: list[dict], bot_code: str) -> str:
+def build_prompt(
+    all_stats: dict,
+    recent_stats: dict,
+    recent_games: list[dict],
+    bot_code: str,
+    improvement_history: list[dict],
+) -> str:
+    n = len(recent_games)
     timelines = "\n\n".join(
         f"Game {i+1}:\n{build_timeline(g)}"
-        for i, g in enumerate(recent_games[-8:])
+        for i, g in enumerate(recent_games)
     )
+
+    history_section = ""
+    if improvement_history:
+        lines = [
+            f"- [{h['timestamp'][:10]}] {h['description']}  "
+            f"(applied at game #{h['games_at_time']}, WR was {h['win_rate_at_time']}%)"
+            for h in improvement_history[-10:]
+        ]
+        history_section = (
+            f"\n## Previously Applied Improvements (last {len(lines)})\n"
+            + "\n".join(lines)
+            + "\n\nIf a recent improvement appears to have made things worse, prioritise "
+            "reverting or correcting it before suggesting new changes.\n"
+        )
+
     return f"""You are an expert StarCraft 2 AI bot developer analysing a Protoss ladder bot (burnysc2 framework).
 
-## Win/Loss Statistics
-{json.dumps(stats, indent=2)}
+## All-Time Statistics ({all_stats['total_games']} games)
+{json.dumps(all_stats, indent=2)}
 
-## Recent Game Timelines (economy + army snapshots every 60 s)
+## Recent Statistics — Last {n} Games  ← PRIMARY FOCUS
+{json.dumps(recent_stats, indent=2)}
+{history_section}
+## Recent Game Timelines — Last {n} Games (economy + army every 60 s)
 {timelines}
 
 ## Current Bot Source (bot/bot.py)
@@ -143,11 +197,19 @@ def build_prompt(stats: dict, recent_games: list[dict], bot_code: str) -> str:
 {bot_code}
 ```
 
-Analyse the loss patterns from the timelines and statistics, then suggest up to 3 targeted code improvements.
+Your PRIMARY focus is the last {n} games. Identify specific patterns in those \
+games that explain wins and losses — look at worker counts, base counts, army \
+size, supply, and game duration at each snapshot.
+
+Compare recent win rate ({recent_stats['win_rate_pct']}%) against all-time \
+({all_stats['win_rate_pct']}%) to judge whether the bot is improving, declining, \
+or stagnating, and reflect that in your analysis.
+
+Suggest up to 3 targeted code improvements based on what you observe in the recent data.
 
 Respond with ONLY a valid JSON object — no markdown fences, no prose outside the JSON:
 {{
-  "analysis": "2-4 sentence summary of the main loss patterns observed",
+  "analysis": "2-4 sentence summary focused on what is failing in the RECENT games and the direction of change",
   "improvements": [
     {{
       "description": "one-line description of what this change does and why",
@@ -161,7 +223,7 @@ Hard rules:
 - old_code MUST be a verbatim substring of the bot source shown above
 - Do not duplicate an old_code across multiple improvements
 - Limit to 3 improvements
-- Only fix things directly evidenced by the loss data (short game duration → early pressure; low worker counts → production issues; etc.)
+- Only fix things directly evidenced by the recent loss data
 - Preserve all existing indentation and style"""
 
 
@@ -173,7 +235,6 @@ def call_claude(prompt: str) -> dict:
         messages=[{"role": "user", "content": prompt}],
     )
     text = msg.content[0].text.strip()
-    # Strip accidental markdown code fences if the model adds them
     if text.startswith("```"):
         text = "\n".join(
             line for line in text.splitlines()
@@ -219,16 +280,25 @@ def main() -> None:
         print(f"Only {len(games)} completed game(s) logged — need {MIN_GAMES} before analysing. Skipping.")
         sys.exit(0)
 
-    stats = compute_stats(games)
-    wr = stats["win_rate_pct"]
-    print(f"Stats: {stats['wins']}W / {stats['losses']}L  ({wr}% win rate over {stats['total_games']} games)")
+    all_stats = compute_stats(games)
+    recent_games = games[-RECENT_WINDOW:]
+    recent_stats = compute_stats(recent_games)
 
-    if wr >= WIN_RATE_THRESHOLD:
-        print(f"Win rate ≥ {WIN_RATE_THRESHOLD}% — no improvement needed this run.")
+    all_wr = all_stats["win_rate_pct"]
+    recent_wr = recent_stats["win_rate_pct"]
+    n = len(recent_games)
+
+    print(f"All-time : {all_stats['wins']}W / {all_stats['losses']}L  ({all_wr}% over {all_stats['total_games']} games)")
+    print(f"Recent {n}: {recent_stats['wins']}W / {recent_stats['losses']}L  ({recent_wr}%)")
+
+    # Only skip if performance is healthy on BOTH horizons
+    if all_wr >= WIN_RATE_THRESHOLD and recent_wr >= WIN_RATE_THRESHOLD:
+        print(f"All-time ({all_wr}%) and recent ({recent_wr}%) both ≥ {WIN_RATE_THRESHOLD}% — no improvement needed.")
         sys.exit(0)
 
+    improvement_history = load_improvement_history()
     bot_code = BOT_FILE.read_text(encoding="utf-8")
-    prompt = build_prompt(stats, games, bot_code)
+    prompt = build_prompt(all_stats, recent_stats, recent_games, bot_code, improvement_history)
 
     print("Calling Claude for analysis…")
     try:
@@ -242,36 +312,52 @@ def main() -> None:
     print(f"\nAnalysis: {analysis}")
     print(f"Improvements suggested: {len(improvements)}\n")
 
+    applied: list[str] = []
     if not improvements:
         print("No improvements suggested.")
     else:
         new_code, applied = apply_improvements(improvements, bot_code)
         if applied:
             BOT_FILE.write_text(new_code, encoding="utf-8")
+            for desc in applied:
+                record_improvement(desc, all_stats["total_games"], all_wr)
             print(f"\n{len(applied)} improvement(s) written to {BOT_FILE}")
         else:
             print("No improvements could be safely applied.")
-            applied = []
 
-    # Always write the analysis report so it gets committed
+    # Always write the analysis report
     LOGS_DIR.mkdir(exist_ok=True)
+    if recent_wr > all_wr:
+        trend = f"↑ improving (recent {recent_wr}% vs all-time {all_wr}%)"
+    elif recent_wr < all_wr:
+        trend = f"↓ declining (recent {recent_wr}% vs all-time {all_wr}%)"
+    else:
+        trend = f"→ stable ({recent_wr}%)"
+
     report = (
         f"# Bot Analysis Report\n\n"
-        f"**Win rate:** {wr}% ({stats['wins']}W / {stats['losses']}L over {stats['total_games']} games)\n\n"
-        f"**By race:**\n"
+        f"**All-time win rate:** {all_wr}%"
+        f" ({all_stats['wins']}W / {all_stats['losses']}L over {all_stats['total_games']} games)\n\n"
+        f"**Recent {n}-game win rate:** {trend}\n\n"
+        f"**By race (all-time):**\n"
         + "\n".join(
             f"- {race}: {d['wins']}W / {d['losses']}L  avg game {d['avg_duration_s']}s"
-            for race, d in stats["by_race"].items()
+            for race, d in all_stats["by_race"].items()
         )
-        + f"\n\n**By strategy:**\n"
+        + f"\n\n**By strategy (all-time):**\n"
         + "\n".join(
             f"- {strat}: {d['wins']}W / {d['losses']}L"
-            for strat, d in stats["by_strategy"].items()
+            for strat, d in all_stats["by_strategy"].items()
+        )
+        + f"\n\n**By strategy (recent {n} games):**\n"
+        + "\n".join(
+            f"- {strat}: {d['wins']}W / {d['losses']}L"
+            for strat, d in recent_stats["by_strategy"].items()
         )
         + f"\n\n**Analysis:**\n{analysis}\n\n"
         + (
             "## Applied Improvements\n" + "\n".join(f"- {d}" for d in applied)
-            if "applied" in dir() and applied
+            if applied
             else "## No improvements applied this run"
         )
     )

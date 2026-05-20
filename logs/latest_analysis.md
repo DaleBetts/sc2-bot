@@ -1,22 +1,29 @@
 # Bot Analysis Report
 
-**Win rate:** 50.9% (81W / 66L over 159 games)
+**All-time win rate:** 51.2% (103W / 82L over 201 games)
 
-**By race:**
-- Zerg: 30W / 22L  avg game 716s
-- Protoss: 28W / 21L  avg game 766s
-- Random: 10W / 8L  avg game 575s
-- Terran: 13W / 15L  avg game 713s
+**Recent 10-game win rate:** ↑ improving (recent 70.0% vs all-time 51.2%)
 
-**By strategy:**
-- standard_macro: 27W / 47L
-- dt_rush: 32W / 13L
-- four_gate: 22W / 6L
+**By race (all-time):**
+- Zerg: 37W / 30L  avg game 698s
+- Protoss: 37W / 27L  avg game 738s
+- Random: 14W / 8L  avg game 542s
+- Terran: 15W / 17L  avg game 726s
+
+**By strategy (all-time):**
+- standard_macro: 32W / 58L
+- dt_rush: 38W / 14L
+- four_gate: 33W / 10L
+
+**By strategy (recent 10 games):**
+- four_gate: 1W / 1L
+- standard_macro: 2W / 1L
+- dt_rush: 4W / 0L
 
 **Analysis:**
-The standard_macro strategy has a catastrophic 36% win rate (27W/47L) while cheese strategies perform well (DT rush 71%, 4-gate 79%). In standard_macro losses (Games 3, 6, 7), the bot never expands beyond 1 base despite having 40 workers, starving its army at only 9-13 supply of army units while supply caps sit at 87-167. The single-base constraint means the bot eventually gets overwhelmed by mid-game timing attacks. Additionally, in Game 2 (DT rush defeat), the bot was still on 1 base when wiped at t=480s, and in Games 6/7 (DT/standard defeats), the army collapses around t=900s suggest the bot fails to rebuild or defend after losing its army because it has no economy redundancy from a second base.
+The bot is clearly improving (70% recent vs 51.2% all-time), driven by strong DT rush performance (4W-0L recent). The two recent losses reveal specific problems: Game 8 (four_gate vs Protoss) shows a sharp army collapse at t=420s (army drops from 14 to 7, then to 1 by t=480s) with supply dropping from 48 to 22, suggesting the bot lost its army and couldn't rebuild due to staying on one base with only 18-20 workers and insufficient gates; Game 9 (standard_macro vs Protoss) shows catastrophic worker loss starting at t=180s (workers drop from 19 to 13, then to 0 by t=360s) while army never builds, indicating the bot was proxy-rushed or cannon-rushed and had no defensive response — workers were killed and the bot never rallied army to defend. Game 5's tie shows a critical mineral float problem (15,153 minerals unspent at supply cap) where the bot hits 200/200 at t=660s and stops spending, wasting thousands of minerals instead of expanding or warping in more units.
 
 ## Applied Improvements
-- Fix expansion logic: the has_defense check is too permissive but the real blocker is that target = 1 + (workers // 16) with 40 workers only targets 3 bases, yet the bot stays on 1 base in all observed games — the issue is the has_defense condition combined with army_size threshold; lower the army threshold to 2 and add a time-based override after 7 minutes to force expansion
-- Fix the DT rush transition: after the cheese window expires (t>=480), the bot has 20 workers and 1 base with no macro infrastructure; add a post-cheese recovery path in _train_probes that ramps worker cap back up to 40 once cheese_active is false, already handled by the else branch — but the real fix is to not hard-cap workers at 20 during DT rush after the dark shrine is already built and DTs are on the field, reducing the window from 480s to after dark shrine is ready
-- Fix army attack threshold: standard_macro games show army sitting idle at rally point (9 units for many minutes in Games 3/6/7) because the threshold is 6 but army never pushes; reduce attack threshold to 4 for standard macro and add a time-based forced attack after 10 minutes to prevent indefinite stalling on one base with no aggression
+- Fix the massive mineral float in late-game supply-capped situations by continuously building additional gateways when minerals exceed 400 and supply is near cap, not just when minerals exceed 800
+- Add active base defense: when workers are under attack (worker count drops significantly) immediately pull nearby workers to fight and rally idle army to defend, addressing the Game 9 pattern where workers were killed with zero defensive response
+- Lower the four_gate attack threshold from 8 to 6 units since Game 8 shows the bot was accumulating 9-14 units but never reached the threshold decisively before losing them — attacking sooner keeps pressure and prevents the army from being picked off while idle

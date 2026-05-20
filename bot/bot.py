@@ -207,8 +207,10 @@ class CompetitiveBot(BotAI):
         )
         # Also build extra gateways to spend excess minerals when not cheese
         effective_target = target_gw
-        if not self._cheese_active and self.minerals > 800:
+        if not self._cheese_active and self.minerals > 400:
             effective_target = min(16, gw_total + 2)
+        if not self._cheese_active and self.supply_used >= 190 and self.minerals > 400:
+            effective_target = min(24, gw_total + 4)
         if gw_total < effective_target and self.can_afford(UnitTypeId.GATEWAY):
             await self._place_near(UnitTypeId.GATEWAY, pylon.position)
 
@@ -569,11 +571,20 @@ class CompetitiveBot(BotAI):
         if near_base:
             for unit in army:
                 unit.attack(near_base.closest_to(unit))
+            # Pull up to 4 workers to defend if army is small
+            if army.amount < 4:
+                for worker in self.workers.closer_than(15, self.start_location)[:4]:
+                    worker.attack(near_base.closest_to(worker))
+            return
+        enemy_near_workers = self.enemy_units.closer_than(15, self.start_location)
+        if enemy_near_workers and army.amount > 0:
+            for unit in army:
+                unit.attack(enemy_near_workers.closest_to(unit))
             return
 
         # 4-gate attacks with 8 units; standard attacks with 4 units to apply early pressure; force attack after 10 min
         if self._cheese_active and self._cheese_type == _CHEESE_4GATE:
-            army_threshold = 8
+            army_threshold = 6
         elif not self._cheese_active and self.time > 600:
             army_threshold = 4
         else:

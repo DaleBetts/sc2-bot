@@ -571,9 +571,11 @@ class CompetitiveBot(BotAI):
         if near_base:
             for unit in army:
                 unit.attack(near_base.closest_to(unit))
-            # Pull up to 4 workers to defend if army is small
-            if army.amount < 4:
-                for worker in self.workers.closer_than(15, self.start_location)[:4]:
+            # Pull workers to defend based on threat severity
+            if army.amount < 6:
+                worker_defenders = self.workers.closer_than(20, self.start_location)
+                max_defenders = min(worker_defenders.amount, max(6, near_base.amount + 2))
+                for worker in worker_defenders[:max_defenders]:
                     worker.attack(near_base.closest_to(worker))
             return
         enemy_near_workers = self.enemy_units.closer_than(15, self.start_location)
@@ -582,13 +584,13 @@ class CompetitiveBot(BotAI):
                 unit.attack(enemy_near_workers.closest_to(unit))
             return
 
-        # 4-gate attacks with 8 units; standard attacks with 4 units to apply early pressure; force attack after 10 min
+        # 4-gate attacks with 6 units; standard attacks with 4 units to apply early pressure; force attack after 10 min
         if self._cheese_active and self._cheese_type == _CHEESE_4GATE:
             army_threshold = 6
         elif not self._cheese_active and self.time > 600:
-            army_threshold = 4
+            army_threshold = 3
         else:
-            army_threshold = 6
+            army_threshold = 4
         if not self.townhalls:
             return
         rally = self.townhalls.closest_to(self.start_location).position.towards(self.game_info.map_center, 15)
@@ -602,8 +604,10 @@ class CompetitiveBot(BotAI):
             if self.enemy_structures
             else self.enemy_start_locations[0]
         )
-        for unit in army.idle:
-            unit.attack(target)
+        # Attack with all units (not just idle) to prevent perpetual rally stall
+        for unit in army:
+            if unit.is_idle or unit.is_moving:
+                unit.attack(target)
 
     # ── Stalker Blink micro ───────────────────────────────────────────────────
 

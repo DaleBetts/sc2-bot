@@ -1,28 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 49.5% (107W / 92L over 216 games)
+**All-time win rate:** 48.7% (114W / 102L over 234 games)
 
-**Recent 10-game win rate:** ↓ declining (recent 20.0% vs all-time 49.5%)
+**Recent 10-game win rate:** ↑ improving (recent 50.0% vs all-time 48.7%)
 
 **By race (all-time):**
-- Zerg: 39W / 33L  avg game 685s
-- Protoss: 38W / 30L  avg game 743s
-- Random: 14W / 10L  avg game 557s
-- Terran: 16W / 19L  avg game 703s
+- Zerg: 42W / 37L  avg game 695s
+- Protoss: 41W / 33L  avg game 730s
+- Random: 14W / 12L  avg game 561s
+- Terran: 17W / 20L  avg game 696s
 
 **By strategy (all-time):**
-- standard_macro: 34W / 65L
-- dt_rush: 39W / 16L
-- four_gate: 34W / 11L
+- standard_macro: 35W / 72L
+- dt_rush: 40W / 16L
+- four_gate: 39W / 14L
 
 **By strategy (recent 10 games):**
-- standard_macro: 1W / 6L
-- dt_rush: 1W / 1L
+- four_gate: 4W / 0L
+- standard_macro: 0W / 4L
+- dt_rush: 1W / 0L
 
 **Analysis:**
-The bot is severely declining — 20% win rate vs 49.5% all-time, with 7 losses in the last 10 games. The dominant failure pattern across Games 1, 2, 3, 6, 7, and 8 is catastrophic early worker loss (workers dropping to 0-14 at t=300-480s) while the bot has only 1-8 army units, indicating the bot is getting all-in rushed and has zero effective defense. The recently added base defense logic (pulling workers to fight) is clearly not working — in Game 8, workers go from 31 to 14 at t=300s and 0 at t=360s with army at 2, suggesting the defense threshold/response is too slow or not triggering. Game 9 shows a separate critical bug: the army accumulates 58 units on 1 base but never attacks (supply caps at 158/183 for 20+ minutes, 0 minerals for extended periods), indicating the attack threshold or idle logic is completely broken for large armies, wasting the game into a tie.
+The recent 10 games show a clear split: four_gate is 4-0 and dt_rush is 1-0, while standard_macro is 0-4. All 4 standard_macro losses share a catastrophic worker wipe pattern — Game 2 loses all workers by t=240s, Game 4 loses workers between t=300-420s, Game 6 loses workers between t=360-420s, and Game 8 loses all workers at t=660s. In every case the army is tiny (0-6 units) when workers are wiped, meaning the defense logic is failing to respond adequately. Game 7 (tie) shows 59 units sitting idle from t=840s to t=1020s before being destroyed, suggesting the attack commitment logic still stalls. The bot is marginally improving (50% vs 48.7% all-time) but entirely due to cheese strategies; standard_macro is broken.
 
 ## Applied Improvements
-- Fix the catastrophic early worker wipe by adding aggressive worker defense: when enemy units are within 20 tiles of start location and workers outnumber the defending army by more than 3x, pull ALL nearby workers to fight rather than just 4, since the current limit of 4 worker defenders is clearly insufficient to stop early all-ins
-- Fix the Game 9 army stall bug where 58 units sit idle for 20+ minutes: the attack logic only moves idle units but if units are already on a move order toward rally they are not idle, causing them to perpetually hold at rally — change army.idle to the full army when army is large enough to attack, and lower the post-600s standard macro threshold from 4 to 2 so large armies actually commit
-- Lower the standard macro attack threshold from 6 to 4 pre-600s and from 4 to 3 post-600s, and remove the separate post-600s branch since the bot is losing workers before it can ever accumulate 6 units — smaller army attacks keep pressure on opponents who are rushing and prevent the bot from being passive while being dismantled
+- Fix standard_macro worker wipe by pulling ALL workers to defend (not just 6) when enemy is near base and army is small, and also trigger defense when workers are being killed (current worker count drops significantly from previous snapshot)
+- Fix the Game 7 army stall where 59 units sit idle for 180+ seconds — force attack when army exceeds 40 units regardless of threshold, and also attack when army hasn't changed size for a long time indicating a stall
+- Fix standard_macro mineral float and single-base stagnation seen in Games 6 and 8 where the bot stays on 1 base with 30-40 workers but never expands — lower expansion defense requirement so second base is taken earlier when any army exists

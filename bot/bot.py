@@ -538,14 +538,14 @@ class CompetitiveBot(BotAI):
         army_size = self.units.filter(lambda u: u.type_id in army_types).amount
         has_defense = (
             self.townhalls.amount >= 2
-            or (gw_count >= 1 and army_size >= 2)
-            or (gw_count >= 2 and army_size >= 1)
-            or army_size >= 4
-            or self.time > 420
+            or (gw_count >= 1 and army_size >= 1)
+            or army_size >= 2
+            or self.time > 300
             or self.structures(UnitTypeId.FORGE).ready
             or self.already_pending(UnitTypeId.FORGE)
             or self.structures(UnitTypeId.SHIELDBATTERY).amount > 0
             or self.already_pending(UnitTypeId.SHIELDBATTERY)
+            or self.workers.amount >= 20
         )
         if (
             self.townhalls.amount < target
@@ -571,17 +571,26 @@ class CompetitiveBot(BotAI):
         if near_base:
             for unit in army:
                 unit.attack(near_base.closest_to(unit))
-            # Pull workers to defend based on threat severity
-            if army.amount < 6:
-                worker_defenders = self.workers.closer_than(20, self.start_location)
-                max_defenders = min(worker_defenders.amount, max(6, near_base.amount + 2))
+            # Pull workers to defend — scale aggressively with threat size
+            worker_defenders = self.workers.closer_than(25, self.start_location)
+            if army.amount < near_base.amount * 2 + 2:
+                # Overwhelmed — pull ALL nearby workers
+                for worker in worker_defenders:
+                    worker.attack(near_base.closest_to(worker))
+            elif army.amount < 6:
+                max_defenders = min(worker_defenders.amount, max(8, near_base.amount * 2))
                 for worker in worker_defenders[:max_defenders]:
                     worker.attack(near_base.closest_to(worker))
             return
         enemy_near_workers = self.enemy_units.closer_than(15, self.start_location)
-        if enemy_near_workers and army.amount > 0:
+        if enemy_near_workers:
             for unit in army:
                 unit.attack(enemy_near_workers.closest_to(unit))
+            # Also pull workers when enemy is directly on top of workers
+            if army.amount < enemy_near_workers.amount * 2:
+                worker_defenders = self.workers.closer_than(20, self.start_location)
+                for worker in worker_defenders:
+                    worker.attack(enemy_near_workers.closest_to(worker))
             return
 
         # 4-gate attacks with 6 units; standard attacks with 4 units to apply early pressure; force attack after 10 min
@@ -591,6 +600,9 @@ class CompetitiveBot(BotAI):
             army_threshold = 3
         else:
             army_threshold = 4
+        # Force attack with large armies regardless of threshold to prevent stall
+        if army.amount >= 30:
+            army_threshold = min(army_threshold, army.amount)
         if not self.townhalls:
             return
         rally = self.townhalls.closest_to(self.start_location).position.towards(self.game_info.map_center, 15)
@@ -606,7 +618,7 @@ class CompetitiveBot(BotAI):
         )
         # Attack with all units (not just idle) to prevent perpetual rally stall
         for unit in army:
-            if unit.is_idle or unit.is_moving:
+            if unit.is_idle or unit.is_moving or (not self._cheese_active and army.amount >= 20):
                 unit.attack(target)
 
     # ── Stalker Blink micro ───────────────────────────────────────────────────

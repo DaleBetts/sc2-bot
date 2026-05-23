@@ -71,7 +71,21 @@ class CompetitiveBot(BotAI):
     @property
     def _cheese_active(self) -> bool:
         # Cheese window: first 8 minutes. After that, fall back to standard macro.
-        return self._cheese_type is not None and self.time < 480
+        if self._cheese_type is None or self.time >= 480:
+            return False
+        # Early abort: if cheese has clearly failed (no army, workers dying, past 5 min)
+        # transition to standard macro immediately to avoid permanent stall
+        if self.time > 300:
+            army_types = _ARMY_TYPES
+            army = self.units.filter(lambda u: u.type_id in army_types)
+            dt_count = self.units(UnitTypeId.DARKTEMPLAR).amount
+            # If DT rush but no DTs and no meaningful army, cheese has failed
+            if self._cheese_type == _CHEESE_DT and dt_count == 0 and army.amount < 3:
+                return False
+            # If 4-gate but army is gone and workers are being lost, abort
+            if self._cheese_type == _CHEESE_4GATE and army.amount < 2 and self.workers.amount < 10:
+                return False
+        return True
 
     async def on_step(self, iteration: int) -> None:
         if iteration == 0:
@@ -546,6 +560,7 @@ class CompetitiveBot(BotAI):
             or self.structures(UnitTypeId.SHIELDBATTERY).amount > 0
             or self.already_pending(UnitTypeId.SHIELDBATTERY)
             or self.workers.amount >= 20
+            or (not self._cheese_active and self.workers.amount >= 16 and gw_count >= 1)
         )
         if (
             self.townhalls.amount < target
@@ -573,7 +588,11 @@ class CompetitiveBot(BotAI):
                 unit.attack(near_base.closest_to(unit))
             # Pull workers to defend — scale aggressively with threat size
             worker_defenders = self.workers.closer_than(25, self.start_location)
-            if army.amount < near_base.amount * 2 + 2:
+            if army.amount == 0:
+                # No army at all — pull ALL workers or we die
+                for worker in worker_defenders:
+                    worker.attack(near_base.closest_to(worker))
+            elif army.amount < near_base.amount * 2 + 2:
                 # Overwhelmed — pull ALL nearby workers
                 for worker in worker_defenders:
                     worker.attack(near_base.closest_to(worker))

@@ -223,6 +223,8 @@ class CompetitiveBot(BotAI):
         effective_target = target_gw
         if not self._cheese_active and self.minerals > 400:
             effective_target = min(16, gw_total + 2)
+        if not self._cheese_active and self.minerals > 800:
+            effective_target = min(20, gw_total + 4)
         if not self._cheese_active and self.supply_used >= 190 and self.minerals > 400:
             effective_target = min(24, gw_total + 4)
         if gw_total < effective_target and self.can_afford(UnitTypeId.GATEWAY):
@@ -542,7 +544,7 @@ class CompetitiveBot(BotAI):
     async def _expand(self) -> None:
         if self._cheese_active:
             return  # No expansion during all-in
-        target = 1 + (self.workers.amount // 16)
+        target = 1 + (self.workers.amount // 12)
         # Require some defensive infrastructure before taking a second base
         gw_count = (
             self.structures(UnitTypeId.GATEWAY).amount
@@ -579,10 +581,19 @@ class CompetitiveBot(BotAI):
             army_types = army_types - {UnitTypeId.DARKTEMPLAR}
         army = self.units.filter(lambda u: u.type_id in army_types)
 
+        # Emergency: if enemy units are near ANY of our structures or workers, pull all workers
+        enemy_near_any_structure = self.enemy_units.closer_than(20, self.start_location)
+        for th in self.townhalls:
+            enemy_near_any_structure = enemy_near_any_structure | self.enemy_units.closer_than(20, th)
+        if not army and enemy_near_any_structure:
+            for worker in self.workers:
+                worker.attack(enemy_near_any_structure.closest_to(worker))
+            return
+
         if not army:
             return
 
-        near_base = self.enemy_units.closer_than(25, self.start_location)
+        near_base = self.enemy_units.closer_than(30, self.start_location)
         if near_base:
             for unit in army:
                 unit.attack(near_base.closest_to(unit))

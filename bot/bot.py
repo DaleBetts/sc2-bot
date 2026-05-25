@@ -564,11 +564,16 @@ class CompetitiveBot(BotAI):
             or self.workers.amount >= 20
             or (not self._cheese_active and self.workers.amount >= 16 and gw_count >= 1)
         )
-        if (
-            self.townhalls.amount < target
-            and has_defense
+        # Force expand when worker-saturated on 1 base regardless of defense (Game 9 pattern)
+        force_expand = (
+            self.townhalls.amount == 1
+            and self.workers.amount >= 28
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
+        )
+        if (
+            (self.townhalls.amount < target and has_defense and not self.already_pending(UnitTypeId.NEXUS) and self.can_afford(UnitTypeId.NEXUS))
+            or force_expand
         ):
             await self.expand_now()
 
@@ -582,12 +587,18 @@ class CompetitiveBot(BotAI):
         army = self.units.filter(lambda u: u.type_id in army_types)
 
         # Emergency: if enemy units are near ANY of our structures or workers, pull all workers
-        enemy_near_any_structure = self.enemy_units.closer_than(20, self.start_location)
+        all_enemy_near_base = self.enemy_units.closer_than(25, self.start_location)
         for th in self.townhalls:
-            enemy_near_any_structure = enemy_near_any_structure | self.enemy_units.closer_than(20, th)
-        if not army and enemy_near_any_structure:
+            close = self.enemy_units.closer_than(20, th.position)
+            if close:
+                all_enemy_near_base = all_enemy_near_base | close
+        for worker in self.workers:
+            close = self.enemy_units.closer_than(10, worker.position)
+            if close:
+                all_enemy_near_base = all_enemy_near_base | close
+        if not army and all_enemy_near_base:
             for worker in self.workers:
-                worker.attack(enemy_near_any_structure.closest_to(worker))
+                worker.attack(all_enemy_near_base.closest_to(worker))
             return
 
         if not army:
@@ -630,25 +641,27 @@ class CompetitiveBot(BotAI):
             army_threshold = 3
         else:
             army_threshold = 4
-        # Force attack with large armies regardless of threshold to prevent stall
-        if army.amount >= 30:
-            army_threshold = min(army_threshold, army.amount)
         if not self.townhalls:
             return
         rally = self.townhalls.closest_to(self.start_location).position.towards(self.game_info.map_center, 15)
-        if army.amount < army_threshold:
-            for unit in army.idle:
-                unit.move(rally)
-            return
 
         target = (
             self.enemy_structures.closest_to(self.start_location).position
             if self.enemy_structures
             else self.enemy_start_locations[0]
         )
+        # Force attack immediately with large armies to prevent stall (Games 9 pattern)
+        if army.amount >= 25:
+            for unit in army:
+                unit.attack(target)
+            return
+        if army.amount < army_threshold:
+            for unit in army.idle:
+                unit.move(rally)
+            return
         # Attack with all units (not just idle) to prevent perpetual rally stall
         for unit in army:
-            if unit.is_idle or unit.is_moving or (not self._cheese_active and army.amount >= 20):
+            if unit.is_idle or unit.is_moving:
                 unit.attack(target)
 
     # ── Stalker Blink micro ───────────────────────────────────────────────────

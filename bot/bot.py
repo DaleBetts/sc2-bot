@@ -565,15 +565,32 @@ class CompetitiveBot(BotAI):
             or (not self._cheese_active and self.workers.amount >= 16 and gw_count >= 1)
         )
         # Force expand when worker-saturated on 1 base regardless of defense (Game 9 pattern)
+        # Also force expand after cheese window ends if we have any meaningful worker count (Game 10 pattern)
+        post_cheese_expand = (
+            self._cheese_type is not None
+            and self.time >= 480
+            and self.townhalls.amount == 1
+            and self.workers.amount >= 22
+            and not self.already_pending(UnitTypeId.NEXUS)
+            and self.can_afford(UnitTypeId.NEXUS)
+        )
         force_expand = (
             self.townhalls.amount == 1
             and self.workers.amount >= 28
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
+        ) or post_cheese_expand
+        # Hard override: with large economy and army, always expand regardless of conditions
+        large_economy_expand = (
+            self.workers.amount >= 36
+            and self.units.filter(lambda u: u.type_id in army_types).amount >= 8
+            and self.townhalls.amount < 3
+            and self.can_afford(UnitTypeId.NEXUS)
         )
         if (
             (self.townhalls.amount < target and has_defense and not self.already_pending(UnitTypeId.NEXUS) and self.can_afford(UnitTypeId.NEXUS))
             or force_expand
+            or large_economy_expand
         ):
             await self.expand_now()
 
@@ -587,16 +604,23 @@ class CompetitiveBot(BotAI):
         army = self.units.filter(lambda u: u.type_id in army_types)
 
         # Emergency: if enemy units are near ANY of our structures or workers, pull all workers
-        all_enemy_near_base = self.enemy_units.closer_than(25, self.start_location)
+        all_enemy_near_base = self.enemy_units.closer_than(30, self.start_location)
         for th in self.townhalls:
-            close = self.enemy_units.closer_than(20, th.position)
+            close = self.enemy_units.closer_than(25, th.position)
             if close:
                 all_enemy_near_base = all_enemy_near_base | close
         for worker in self.workers:
-            close = self.enemy_units.closer_than(10, worker.position)
+            close = self.enemy_units.closer_than(15, worker.position)
             if close:
                 all_enemy_near_base = all_enemy_near_base | close
         if not army and all_enemy_near_base:
+            for worker in self.workers:
+                worker.attack(all_enemy_near_base.closest_to(worker))
+            return
+        # Also defend if army is tiny and enemy is threatening workers directly
+        if army.amount < 3 and all_enemy_near_base:
+            for unit in army:
+                unit.attack(all_enemy_near_base.closest_to(unit))
             for worker in self.workers:
                 worker.attack(all_enemy_near_base.closest_to(worker))
             return

@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 49.1% (155W / 140L over 316 games)
+**All-time win rate:** 48.5% (163W / 149L over 336 games)
 
-**Recent 10-game win rate:** ↑ improving (recent 50.0% vs all-time 49.1%)
+**Recent 10-game win rate:** ↓ declining (recent 30.0% vs all-time 48.5%)
 
 **By race (all-time):**
-- Zerg: 49W / 55L  avg game 708s
-- Protoss: 61W / 44L  avg game 711s
-- Random: 22W / 14L  avg game 593s
-- Terran: 23W / 27L  avg game 652s
+- Zerg: 50W / 59L  avg game 699s
+- Protoss: 65W / 47L  avg game 704s
+- Random: 24W / 14L  avg game 594s
+- Terran: 24W / 29L  avg game 654s
 
 **By strategy (all-time):**
-- standard_macro: 48W / 95L
-- dt_rush: 55W / 21L
-- four_gate: 52W / 24L
+- standard_macro: 50W / 98L
+- dt_rush: 59W / 24L
+- four_gate: 54W / 27L
 
 **By strategy (recent 10 games):**
 - dt_rush: 1W / 2L
+- four_gate: 1W / 2L
 - standard_macro: 1W / 2L
-- four_gate: 3W / 1L
 
 **Analysis:**
-Recent win rate (50.0%) is marginally above all-time (49.1%), showing very slight improvement. The critical failures in the last 10 games are: (1) Games 1, 3, and 5 show workers being completely wiped to 0 by t=180-360s with army=0 and no defense triggered — the enemy reaches workers before any army exists; (2) Game 10 shows a four_gate that survives its cheese phase but then permanently stagnates on 1 base with 40 workers and army oscillating 0-12 for 900+ seconds, never expanding despite workers>=28, suggesting the force_expand check or the four_gate->macro transition is failing; (3) Game 2 shows standard_macro with 40 workers on 1 base from t=360 all the way to t=600+ with a growing army but never expanding, indicating the expand formula or has_defense check is still blocking expansion in non-cheese games even with large armies.
+The bot is declining significantly — 30% win rate in recent games vs 48.5% all-time. The dominant failure pattern across Games 1, 2, 3, 6, 7, 9 is workers being massacred (dropping to 0-4) with no meaningful army response, suggesting the emergency defense triggers are still failing. Game 1 shows the most critical new pattern: the bot reaches 54 army supply at t=960s-t=1260s but NEVER attacks (supply frozen at 150/183 for 5 minutes), then workers die and game is lost — the army.amount>=25 force-attack condition should have triggered but the army is stuck in idle rally loop. Games 3 and 7 show macro stagnation with only 4-10 army units on 2 bases for 600+ seconds while Zerg scales up, and Game 1 specifically shows the bot sitting on 1 base with 54 army units for 20+ minutes never pressing the attack, indicating the force-attack threshold of 25 is not reliably executing when units are not idle or moving.
 
 ## Applied Improvements
-- Fix Game 10's permanent single-base stagnation where four_gate ends but bot never transitions to expansion — after cheese window closes (time>=480), force expand immediately if workers>=22 and bases==1, bypassing the standard has_defense check since a post-cheese bot with 18+ workers and existing structures is always safe to expand
-- Fix Games 1, 3, and 5 where workers are wiped before any army exists — when workers are dying fast (worker count drops) and enemy units are near any worker, immediately pull ALL workers to fight without requiring army to exist first, and also widen the threat detection radius to catch enemies approaching from natural distance
-- Fix Game 2's standard_macro single-base stagnation where 40 workers sit on 1 base from t=360 to t=600+ — the expand target formula 1+(workers//12) should give target=4 at 40 workers but has_defense or already_pending is blocking it; add a strong override that forces expansion when workers>=36 and army>=10 regardless of all other conditions
+- Fix Game 1's catastrophic army stall where 54 units sit frozen for 300+ seconds — the force-attack block only runs if army.amount>=25 but the units may be in an 'attacking' state pointing at a rally point; force ALL army units to attack the target every step when army>=20 regardless of unit state, not just idle/moving units
+- Fix Games 3 and 7 where army stays at 0-8 on 2 bases for 600+ seconds against Zerg — the standard_macro expand logic correctly fires but army production is negligible because gateways are idle while workers pile up; add an emergency unit production flush that trains zealots from ALL idle gateways+warpgates when minerals>300 and army<10 to prevent economic stagnation turning into a loss
+- Fix Games 2, 4, 9 where workers drop to 0-1 very early (t=120-180s) with 0 army and no response — the current emergency defense requires enemy_units to be detected but early rushes may kill workers before detection; add a worker-count-drop detector that immediately pulls all surviving workers to fight when worker count drops by 4+ in a single check interval

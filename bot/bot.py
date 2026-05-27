@@ -117,6 +117,15 @@ class CompetitiveBot(BotAI):
         if minute <= self._last_log_minute:
             return
         self._last_log_minute = minute
+        self._prev_worker_count = getattr(self, '_prev_worker_count', self.workers.amount)
+        worker_drop = self._prev_worker_count - self.workers.amount
+        if worker_drop >= 4 and self.workers.amount > 0:
+            # Workers dying fast — pull all workers to fight immediately
+            all_enemies = self.enemy_units
+            if all_enemies:
+                for worker in self.workers:
+                    worker.attack(all_enemies.closest_to(worker))
+        self._prev_worker_count = self.workers.amount
         army = self.units.filter(lambda u: u.type_id in _ARMY_TYPES)
         self._logger.log(
             "periodic",
@@ -371,6 +380,22 @@ class CompetitiveBot(BotAI):
         pylons = self.structures(UnitTypeId.PYLON).ready
         if not pylons:
             return
+        # Emergency mineral dump: if minerals are high and army is tiny, train zealots immediately
+        army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
+        current_army = self.units.filter(lambda u: u.type_id in army_types).amount
+        if self.minerals > 300 and current_army < 10 and not self._cheese_active:
+            for gw in self.structures(UnitTypeId.GATEWAY).ready.idle:
+                if self.can_afford(UnitTypeId.ZEALOT) and self.supply_left > 0:
+                    gw.train(UnitTypeId.ZEALOT)
+            spawn_near_em = pylons.closest_to(self.start_location).position.towards(self.start_location, 3)
+            for wg in self.structures(UnitTypeId.WARPGATE).ready:
+                if self.supply_left <= 0:
+                    break
+                abilities_em = await self.get_available_abilities(wg)
+                if AbilityId.WARPGATETRAIN_ZEALOT in abilities_em and self.can_afford(UnitTypeId.ZEALOT):
+                    placement_em = await self.find_placement(AbilityId.WARPGATETRAIN_ZEALOT, spawn_near_em, placement_step=2)
+                    if placement_em:
+                        wg(AbilityId.WARPGATETRAIN_ZEALOT, placement_em)
         if self._cheese_active and self._cheese_type == _CHEESE_DT:
             spawn_near = pylons.closest_to(self.start_location).position.towards(self.game_info.map_center, 8)
         else:
@@ -675,7 +700,7 @@ class CompetitiveBot(BotAI):
             else self.enemy_start_locations[0]
         )
         # Force attack immediately with large armies to prevent stall (Games 9 pattern)
-        if army.amount >= 25:
+        if army.amount >= 20:
             for unit in army:
                 unit.attack(target)
             return
@@ -685,8 +710,7 @@ class CompetitiveBot(BotAI):
             return
         # Attack with all units (not just idle) to prevent perpetual rally stall
         for unit in army:
-            if unit.is_idle or unit.is_moving:
-                unit.attack(target)
+            unit.attack(target)
 
     # ── Stalker Blink micro ───────────────────────────────────────────────────
 

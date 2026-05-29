@@ -182,7 +182,8 @@ class CompetitiveBot(BotAI):
             elif self._cheese_type == _CHEESE_DT:
                 worker_cap = 20
             else:
-                worker_cap = 18
+                # Raise 4-gate cap to 22 so bot isn't helpless if army production stalls
+                worker_cap = 22
         for nexus in self.townhalls.ready.idle:
             if self.workers.amount < worker_cap and self.can_afford(UnitTypeId.PROBE) and self.supply_left > 0:
                 nexus.train(UnitTypeId.PROBE)
@@ -383,7 +384,14 @@ class CompetitiveBot(BotAI):
         # Emergency mineral dump: if minerals are high and army is tiny, train zealots immediately
         army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
         current_army = self.units.filter(lambda u: u.type_id in army_types).amount
-        if self.minerals > 300 and current_army < 10 and not self._cheese_active:
+        # Post-cheese emergency: if cheese failed/expired but army is tiny, force production every step
+        post_cheese_army_emergency = (
+            self._cheese_type is not None
+            and not self._cheese_active
+            and current_army < 12
+            and self.workers.amount >= 20
+        )
+        if (self.minerals > 200 and current_army < 10 and not self._cheese_active) or post_cheese_army_emergency:
             for gw in self.structures(UnitTypeId.GATEWAY).ready.idle:
                 if self.can_afford(UnitTypeId.ZEALOT) and self.supply_left > 0:
                     gw.train(UnitTypeId.ZEALOT)
@@ -699,8 +707,10 @@ class CompetitiveBot(BotAI):
             if self.enemy_structures
             else self.enemy_start_locations[0]
         )
-        # Force attack immediately with large armies to prevent stall (Games 9 pattern)
-        if army.amount >= 20:
+        # Force attack immediately with large armies to prevent stall (Games 9/10 pattern)
+        # Lower threshold to 12 so bot doesn't float minerals while army stagnates on 2 bases
+        force_attack_threshold = 12 if not self._cheese_active else 20
+        if army.amount >= force_attack_threshold:
             for unit in army:
                 unit.attack(target)
             return

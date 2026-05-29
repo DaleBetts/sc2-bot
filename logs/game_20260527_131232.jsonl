@@ -1,0 +1,10 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "66a50868-893d-4ec9-8462-3bc1d566d579", "opponent_race": "Zerg", "map_name": "Magannatha AIE", "strategy": "dt_rush"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 8.5, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 31, "supply_left": 14, "minerals": 90, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 18.6, "minute": 2, "workers": 17, "bases": 1, "supply_used": 17, "supply_cap": 55, "supply_left": 38, "minerals": 5, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 34.4, "minute": 3, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 55, "supply_left": 55, "minerals": 5, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 43.6, "minute": 4, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 55, "supply_left": 55, "minerals": 5, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 300.0, "wall_s": 53.2, "minute": 5, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 55, "supply_left": 55, "minerals": 5, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 360.0, "wall_s": 63.5, "minute": 6, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 55, "supply_left": 55, "minerals": 5, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 420.0, "wall_s": 73.4, "minute": 7, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 55, "supply_left": 55, "minerals": 5, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "game_end", "game_time": 421.5, "wall_s": 73.7, "result": "Tie", "final_workers": 0, "final_bases": 1, "final_supply": 0, "strategy": "dt_rush", "opponent_race": "Zerg"}

@@ -1,0 +1,10 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "ef1a4a4c-846a-4ca0-8ac4-41d34a129f3b", "opponent_race": "Terran", "map_name": "Incorporeal AIE", "strategy": "dt_rush"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 6.9, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 31, "supply_left": 14, "minerals": 55, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 15.1, "minute": 2, "workers": 17, "bases": 1, "supply_used": 17, "supply_cap": 47, "supply_left": 30, "minerals": 15, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 24.2, "minute": 3, "workers": 21, "bases": 1, "supply_used": 22, "supply_cap": 47, "supply_left": 25, "minerals": 130, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 36.9, "minute": 4, "workers": 21, "bases": 1, "supply_used": 23, "supply_cap": 47, "supply_left": 24, "minerals": 30, "vespene": 0, "army_count": 1, "cheese_active": true}
+{"event": "periodic", "game_time": 300.0, "wall_s": 49.8, "minute": 5, "workers": 20, "bases": 1, "supply_used": 22, "supply_cap": 47, "supply_left": 25, "minerals": 30, "vespene": 0, "army_count": 1, "cheese_active": true}
+{"event": "periodic", "game_time": 360.0, "wall_s": 67.7, "minute": 6, "workers": 15, "bases": 1, "supply_used": 17, "supply_cap": 47, "supply_left": 30, "minerals": 30, "vespene": 0, "army_count": 1, "cheese_active": false}
+{"event": "periodic", "game_time": 420.0, "wall_s": 92.8, "minute": 7, "workers": 11, "bases": 1, "supply_used": 13, "supply_cap": 39, "supply_left": 26, "minerals": 30, "vespene": 0, "army_count": 1, "cheese_active": false}
+{"event": "game_end", "game_time": 472.4, "wall_s": 109.2, "result": "Defeat", "final_workers": 0, "final_bases": 0, "final_supply": 0, "strategy": "dt_rush", "opponent_race": "Terran"}

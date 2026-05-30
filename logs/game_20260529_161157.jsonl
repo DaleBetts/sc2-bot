@@ -1,0 +1,10 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "d99ae67d-3a88-4df0-b24b-e7b61ac28f9c", "opponent_race": "Zerg", "map_name": "Persephone AIE", "strategy": "standard_macro"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 60.0, "wall_s": 10.8, "minute": 1, "workers": 16, "bases": 1, "supply_used": 16, "supply_cap": 31, "supply_left": 15, "minerals": 15, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 120.0, "wall_s": 22.8, "minute": 2, "workers": 5, "bases": 1, "supply_used": 5, "supply_cap": 31, "supply_left": 26, "minerals": 15, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 180.0, "wall_s": 32.6, "minute": 3, "workers": 4, "bases": 1, "supply_used": 4, "supply_cap": 31, "supply_left": 27, "minerals": 15, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 240.0, "wall_s": 42.2, "minute": 4, "workers": 4, "bases": 1, "supply_used": 4, "supply_cap": 31, "supply_left": 27, "minerals": 15, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 300.0, "wall_s": 51.6, "minute": 5, "workers": 4, "bases": 1, "supply_used": 4, "supply_cap": 31, "supply_left": 27, "minerals": 15, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 360.0, "wall_s": 60.9, "minute": 6, "workers": 4, "bases": 1, "supply_used": 4, "supply_cap": 31, "supply_left": 27, "minerals": 15, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 420.0, "wall_s": 70.3, "minute": 7, "workers": 4, "bases": 1, "supply_used": 4, "supply_cap": 31, "supply_left": 27, "minerals": 15, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "game_end", "game_time": 453.8, "wall_s": 75.4, "result": "Tie", "final_workers": 4, "final_bases": 1, "final_supply": 4, "strategy": "standard_macro", "opponent_race": "Zerg"}

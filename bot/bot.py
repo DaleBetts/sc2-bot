@@ -114,18 +114,24 @@ class CompetitiveBot(BotAI):
 
     def _maybe_log_periodic(self) -> None:
         minute = int(self.time // 60)
-        if minute <= self._last_log_minute:
-            return
-        self._last_log_minute = minute
+        # Every step: check for rapid worker loss and respond immediately
         self._prev_worker_count = getattr(self, '_prev_worker_count', self.workers.amount)
         worker_drop = self._prev_worker_count - self.workers.amount
-        if worker_drop >= 4 and self.workers.amount > 0:
+        if worker_drop >= 2 and self.workers.amount > 0:
             # Workers dying fast — pull all workers to fight immediately
             all_enemies = self.enemy_units
             if all_enemies:
                 for worker in self.workers:
                     worker.attack(all_enemies.closest_to(worker))
+            elif self.workers.amount > 0:
+                # No visible enemies but workers dying — probe toward natural choke
+                threat_pos = self.start_location.towards(self.game_info.map_center, 20)
+                for worker in self.workers:
+                    worker.attack(threat_pos)
         self._prev_worker_count = self.workers.amount
+        if minute <= self._last_log_minute:
+            return
+        self._last_log_minute = minute
         army = self.units.filter(lambda u: u.type_id in _ARMY_TYPES)
         self._logger.log(
             "periodic",
@@ -607,6 +613,18 @@ class CompetitiveBot(BotAI):
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
         )
+        # Four-gate mid-game expand: if we have army and workers but cheese is still active,
+        # expand early when we have enough force to defend (Games 2, 3, 7 pattern)
+        four_gate_mid_expand = (
+            self._cheese_type == _CHEESE_4GATE
+            and self._cheese_active
+            and self.time >= 300
+            and self.townhalls.amount == 1
+            and self.workers.amount >= 20
+            and self.units.filter(lambda u: u.type_id in army_types).amount >= 8
+            and not self.already_pending(UnitTypeId.NEXUS)
+            and self.can_afford(UnitTypeId.NEXUS)
+        )
         force_expand = (
             self.townhalls.amount == 1
             and self.workers.amount >= 28
@@ -624,6 +642,7 @@ class CompetitiveBot(BotAI):
             (self.townhalls.amount < target and has_defense and not self.already_pending(UnitTypeId.NEXUS) and self.can_afford(UnitTypeId.NEXUS))
             or force_expand
             or large_economy_expand
+            or four_gate_mid_expand
         ):
             await self.expand_now()
 

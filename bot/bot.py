@@ -117,8 +117,15 @@ class CompetitiveBot(BotAI):
         # Every step: check for rapid worker loss and respond immediately
         self._prev_worker_count = getattr(self, '_prev_worker_count', self.workers.amount)
         worker_drop = self._prev_worker_count - self.workers.amount
-        if worker_drop >= 2 and self.workers.amount > 0:
-            # Workers dying fast — pull all workers to fight immediately
+        # Pull workers to fight if workers are dying OR if enemy units are close with no army
+        army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
+        current_army_count = self.units.filter(lambda u: u.type_id in army_types).amount
+        enemy_near_base_early = self.enemy_units.closer_than(40, self.start_location)
+        should_defend_workers = (
+            (worker_drop >= 1 and self.workers.amount > 0)
+            or (enemy_near_base_early and current_army_count < 3 and self.workers.amount > 0)
+        )
+        if should_defend_workers:
             all_enemies = self.enemy_units
             if all_enemies:
                 for worker in self.workers:
@@ -193,6 +200,12 @@ class CompetitiveBot(BotAI):
         for nexus in self.townhalls.ready.idle:
             if self.workers.amount < worker_cap and self.can_afford(UnitTypeId.PROBE) and self.supply_left > 0:
                 nexus.train(UnitTypeId.PROBE)
+        # Chrono boost probes early to build up worker count faster and reduce early-rush vulnerability
+        for nexus in self.townhalls.ready:
+            if nexus.energy >= 50 and self.workers.amount < 22:
+                abilities = await self.get_available_abilities(nexus)
+                if AbilityId.EFFECT_CHRONOBOOSTENERGYCOST in abilities:
+                    nexus(AbilityId.EFFECT_CHRONOBOOSTENERGYCOST, nexus)
 
     # ── Structures ───────────────────────────────────────────────────────────
 
@@ -617,11 +630,13 @@ class CompetitiveBot(BotAI):
         # expand early when we have enough force to defend (Games 2, 3, 7 pattern)
         four_gate_mid_expand = (
             self._cheese_type == _CHEESE_4GATE
-            and self._cheese_active
             and self.time >= 300
             and self.townhalls.amount == 1
             and self.workers.amount >= 20
-            and self.units.filter(lambda u: u.type_id in army_types).amount >= 8
+            and (
+                self.units.filter(lambda u: u.type_id in army_types).amount >= 4
+                or self.minerals >= 300
+            )
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
         )

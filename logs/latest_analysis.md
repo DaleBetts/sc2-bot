@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 47.3% (191W / 184L over 404 games)
+**All-time win rate:** 47.2% (200W / 194L over 424 games)
 
-**Recent 10-game win rate:** ↓ declining (recent 20.0% vs all-time 47.3%)
+**Recent 10-game win rate:** ↓ declining (recent 40.0% vs all-time 47.2%)
 
 **By race (all-time):**
-- Zerg: 60W / 65L  avg game 684s
-- Protoss: 77W / 60L  avg game 678s
-- Random: 28W / 21L  avg game 631s
-- Terran: 26W / 38L  avg game 631s
+- Zerg: 63W / 69L  avg game 674s
+- Protoss: 83W / 63L  avg game 673s
+- Random: 28W / 23L  avg game 643s
+- Terran: 26W / 39L  avg game 634s
 
 **By strategy (all-time):**
-- standard_macro: 65W / 112L
-- dt_rush: 62W / 33L
-- four_gate: 64W / 39L
+- standard_macro: 70W / 119L
+- dt_rush: 64W / 34L
+- four_gate: 66W / 41L
 
 **By strategy (recent 10 games):**
-- dt_rush: 0W / 3L
-- four_gate: 1W / 4L
-- standard_macro: 1W / 1L
+- four_gate: 1W / 2L
+- standard_macro: 3W / 3L
+- dt_rush: 0W / 1L
 
 **Analysis:**
-The bot is in severe decline (20% recent vs 47.3% all-time), with 7 of 10 recent losses caused by workers being wiped to 0 before any meaningful army exists (Games 1, 2, 3, 6, 7, 8, 9, 10). The worker-drop detector in _maybe_log_periodic only fires once per minute (periodic log), so a rush that kills workers between log intervals gets no response until the next minute check — by then all workers are dead. Games 2, 3, 7, 8 show the four_gate strategy stagnating on 1 base with 22 workers capped and army building slowly while the enemy attacks and wipes everything around t=420-600s. The emergency defense logic in _attack checks enemy_units but by the time enemies are detected near structures, workers are already dead with no army to respond.
+The recent 40% win rate is well below the 47.2% all-time average, indicating a clear regression. The dominant failure pattern in 6 of the last 10 games is catastrophic early worker wipeout: Games 2, 4, 5, 6, 8 all show workers dropping to 0-1 before t=180s with zero army response, indicating that early rushes (proxy gates, 2-gate, speedling all-ins) are killing all probes before any defense fires. The worker-drop detector added previously only triggers when 'worker_drop >= 2' but this may still be too slow since workers go from 16-20 to 0 in a single 60s snapshot, suggesting the detector fires too late or the response (attacking closest enemy) is insufficient because no army exists. Game 1 shows a different problem: the four_gate strategy builds a reasonable army but never expands off one base for 1320 seconds, keeping bases=1 throughout the entire game until death, and the four_gate_mid_expand condition requiring army>=8 is apparently never satisfied consistently enough to trigger.
 
 ## Applied Improvements
-- Move worker-drop detection and emergency defense from the once-per-minute log function into on_step so it fires every iteration, catching early rushes before they wipe all workers
-- Fix four_gate single-base stagnation (Games 2, 3, 7) where 22 workers and growing army sit on 1 base forever — force expand in four_gate when army>=8 and workers>=20 and time>=300 since cheese window at t=300 with army means we can safely take a natural
-- Wire the four_gate_mid_expand flag into the expand condition check so it actually triggers expansion
+- Lower worker-drop threshold from 2 to 1 and also pull workers when enemy units are detected near base even without a worker drop, to catch proxy/rush threats sooner before all workers are dead
+- Fix Game 1's permanent single-base stagnation in four_gate: lower the four_gate_mid_expand army threshold from 8 to 4 and also trigger expansion when minerals float above 300 on 1 base with 20+ workers, since the bot clearly accumulates minerals (t=300: 320 minerals, t=360: army=9) but never expands
+- Add a nexus chrono-boost on probes to accelerate early probe production and reduce the window where the bot has few workers and no army, making it harder to be worker-wiped by early rushes

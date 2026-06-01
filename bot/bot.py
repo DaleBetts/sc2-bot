@@ -85,6 +85,13 @@ class CompetitiveBot(BotAI):
             # If 4-gate but army is gone and workers are being lost, abort
             if self._cheese_type == _CHEESE_4GATE and army.amount < 2 and self.workers.amount < 10:
                 return False
+        # Hard abort: if cheese is still nominally active past t=360 but army is still 0,
+        # the strategy has completely failed — force transition to standard macro
+        if self.time > 360:
+            army_types = _ARMY_TYPES
+            army = self.units.filter(lambda u: u.type_id in army_types)
+            if army.amount == 0:
+                return False
         return True
 
     async def on_step(self, iteration: int) -> None:
@@ -128,13 +135,21 @@ class CompetitiveBot(BotAI):
         if should_defend_workers:
             all_enemies = self.enemy_units
             if all_enemies:
-                for worker in self.workers:
+                # Only pull up to 4 workers to defend — pulling all workers just gets them killed
+                # Exception: if nexus is directly under attack, pull more workers
+                nexus_under_attack = any(
+                    self.enemy_units.closer_than(5, th.position)
+                    for th in self.townhalls
+                )
+                max_worker_defenders = self.workers.amount if nexus_under_attack else min(4, self.workers.amount)
+                defending_workers = self.workers.closest_n_units(all_enemies.center, max_worker_defenders)
+                for worker in defending_workers:
                     worker.attack(all_enemies.closest_to(worker))
-            elif self.workers.amount > 0:
-                # No visible enemies but workers dying — probe toward natural choke
+            elif worker_drop >= 1 and self.workers.amount > 0:
+                # No visible enemies but workers dying — only send 2 scouts
                 threat_pos = self.start_location.towards(self.game_info.map_center, 20)
-                for worker in self.workers:
-                    worker.attack(threat_pos)
+                for worker in self.workers[:2]:
+                    worker.move(threat_pos)
         self._prev_worker_count = self.workers.amount
         if minute <= self._last_log_minute:
             return
@@ -427,6 +442,17 @@ class CompetitiveBot(BotAI):
             spawn_near = pylons.closest_to(self.start_location).position.towards(self.game_info.map_center, 8)
         else:
             spawn_near = pylons.closest_to(self.start_location).position.towards(self.start_location, 3)
+
+        # Emergency: if cheese is active but army is 0 after t=240s, force zealot/stalker production
+        # from ALL gateways (not just idle) to break silent production stalls
+        if self._cheese_active and current_army < 2 and self.time > 240:
+            for gw in self.structures(UnitTypeId.GATEWAY).ready:
+                if self.supply_left <= 0:
+                    break
+                if self.can_afford(UnitTypeId.ZEALOT):
+                    gw.train(UnitTypeId.ZEALOT)
+                elif self.can_afford(UnitTypeId.STALKER):
+                    gw.train(UnitTypeId.STALKER)
 
         dark_shrine_ready = bool(self.structures(UnitTypeId.DARKSHRINE).ready)
         sentry_count = self.units(UnitTypeId.SENTRY).amount + self.already_pending(UnitTypeId.SENTRY)

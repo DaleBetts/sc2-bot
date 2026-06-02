@@ -1,0 +1,9 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "803b2a8b-dd97-4f37-9d81-fe89ccd0928e", "opponent_race": "Zerg", "map_name": "Ultralove AIE", "strategy": "four_gate"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 14.0, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 85, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 22.2, "minute": 2, "workers": 19, "bases": 1, "supply_used": 19, "supply_cap": 47, "supply_left": 28, "minerals": 20, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 31.4, "minute": 3, "workers": 10, "bases": 1, "supply_used": 10, "supply_cap": 47, "supply_left": 37, "minerals": 20, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 38.8, "minute": 4, "workers": 10, "bases": 1, "supply_used": 10, "supply_cap": 47, "supply_left": 37, "minerals": 20, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 300.0, "wall_s": 47.9, "minute": 5, "workers": 10, "bases": 1, "supply_used": 10, "supply_cap": 47, "supply_left": 37, "minerals": 20, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 360.0, "wall_s": 56.2, "minute": 6, "workers": 10, "bases": 1, "supply_used": 10, "supply_cap": 47, "supply_left": 37, "minerals": 20, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "game_end", "game_time": 419.6, "wall_s": 65.6, "result": "Tie", "final_workers": 10, "final_bases": 1, "final_supply": 10, "strategy": "four_gate", "opponent_race": "Zerg"}

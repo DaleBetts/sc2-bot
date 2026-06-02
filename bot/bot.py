@@ -97,6 +97,18 @@ class CompetitiveBot(BotAI):
     async def on_step(self, iteration: int) -> None:
         if iteration == 0:
             await self.chat_send("gl hf - En Taro Artanis!")
+            self._dead_since: float = 0.0
+        # Auto-surrender: if we have no workers AND no army AND no hope, gg out
+        army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
+        _cur_army = self.units.filter(lambda u: u.type_id in army_types).amount
+        if self.workers.amount == 0 and _cur_army == 0 and self.time > 120:
+            if self._dead_since == 0.0:
+                self._dead_since = self.time
+            elif self.time - self._dead_since > 60:
+                await self.client.leave()
+                return
+        else:
+            self._dead_since = 0.0
         await self.distribute_workers()
         self._maybe_log_periodic()
         await self._scout()
@@ -127,9 +139,11 @@ class CompetitiveBot(BotAI):
         # Pull workers to fight if workers are dying OR if enemy units are close with no army
         army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
         current_army_count = self.units.filter(lambda u: u.type_id in army_types).amount
-        enemy_near_base_early = self.enemy_units.closer_than(40, self.start_location)
+        enemy_near_base_early = self.enemy_units.filter(
+            lambda u: u.type_id not in _WORKER_TYPES and u.type_id != UnitTypeId.OVERLORD
+        ).closer_than(20, self.start_location)
         should_defend_workers = (
-            (worker_drop >= 1 and self.workers.amount > 0)
+            (worker_drop >= 2 and self.workers.amount > 0)
             or (enemy_near_base_early and current_army_count < 3 and self.workers.amount > 0)
         )
         if should_defend_workers:
@@ -710,12 +724,17 @@ class CompetitiveBot(BotAI):
             for worker in self.workers:
                 worker.attack(all_enemy_near_base.closest_to(worker))
             return
-        # Also defend if army is tiny and enemy is threatening workers directly
-        if army.amount < 3 and all_enemy_near_base:
+        # Also defend if army is tiny and enemy combat units are directly threatening workers
+        combat_near_workers = self.enemy_units.filter(
+            lambda u: u.type_id not in _WORKER_TYPES and u.type_id != UnitTypeId.OVERLORD
+        ).closer_than(10, self.start_location)
+        if army.amount < 3 and combat_near_workers:
             for unit in army:
-                unit.attack(all_enemy_near_base.closest_to(unit))
-            for worker in self.workers:
-                worker.attack(all_enemy_near_base.closest_to(worker))
+                unit.attack(combat_near_workers.closest_to(unit))
+            # Only pull workers actually being attacked, not all workers
+            workers_under_fire = self.workers.filter(lambda w: w.is_attacking or self.enemy_units.closer_than(5, w).amount > 0)
+            for worker in workers_under_fire:
+                worker.attack(combat_near_workers.closest_to(worker))
             return
 
         if not army:

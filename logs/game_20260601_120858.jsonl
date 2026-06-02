@@ -1,0 +1,10 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "4881db6e-27c9-462f-9380-093f27a43ff7", "opponent_race": "Zerg", "map_name": "Torches AIE", "strategy": "four_gate"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 7.6, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 35, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 16.2, "minute": 2, "workers": 2, "bases": 1, "supply_used": 2, "supply_cap": 47, "supply_left": 45, "minerals": 10, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 23.6, "minute": 3, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 47, "supply_left": 47, "minerals": 10, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 30.9, "minute": 4, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 47, "supply_left": 47, "minerals": 10, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 300.0, "wall_s": 39.0, "minute": 5, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 47, "supply_left": 47, "minerals": 10, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 360.0, "wall_s": 47.5, "minute": 6, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 47, "supply_left": 47, "minerals": 10, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 420.0, "wall_s": 57.9, "minute": 7, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 15, "supply_left": 15, "minerals": 10, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "game_end", "game_time": 426.2, "wall_s": 59.1, "result": "Defeat", "final_workers": 0, "final_bases": 1, "final_supply": 0, "strategy": "four_gate", "opponent_race": "Zerg"}

@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 45.4% (201W / 211L over 443 games)
+**All-time win rate:** 44.2% (207W / 227L over 468 games)
 
-**Recent 10-game win rate:** ↓ declining (recent 10.0% vs all-time 45.4%)
+**Recent 10-game win rate:** ↓ declining (recent 20.0% vs all-time 44.2%)
 
 **By race (all-time):**
-- Zerg: 64W / 71L  avg game 666s
-- Protoss: 83W / 71L  avg game 670s
-- Random: 28W / 27L  avg game 649s
-- Terran: 26W / 42L  avg game 627s
+- Zerg: 66W / 75L  avg game 663s
+- Protoss: 87W / 76L  avg game 667s
+- Random: 28W / 29L  avg game 675s
+- Terran: 26W / 47L  avg game 635s
 
 **By strategy (all-time):**
-- standard_macro: 71W / 126L
-- dt_rush: 64W / 40L
-- four_gate: 66W / 45L
+- standard_macro: 74W / 133L
+- dt_rush: 66W / 45L
+- four_gate: 67W / 49L
 
 **By strategy (recent 10 games):**
-- standard_macro: 1W / 2L
-- dt_rush: 0W / 4L
-- four_gate: 0W / 3L
+- four_gate: 0W / 2L
+- standard_macro: 1W / 4L
+- dt_rush: 1W / 2L
 
 **Analysis:**
-The bot is in severe decline (10% recent vs 45.4% all-time), with 9 of 10 recent games lost. The dominant pattern across games 1, 3, 4, 5, 6, 7, 8, 9 is that all workers are wiped (drop to 0) at various times (t=180s to t=1140s) while army remains at 0-1, meaning the worker-defense code is not functioning. The worker-drop detector fires every step and pulls workers to attack, but the workers die anyway — the issue is that pulling ALL workers away from mining to chase enemies means they stop mining AND die anyway since they can't fight army units. Games 3, 7, 9 show a secondary critical bug: army stays at exactly 0-1 for 600-1000+ seconds despite having 22-24 workers and pylons/structures — the dt_rush and four_gate strategies produce zero army units for the entire game duration, indicating the warpgate/gateway army production is silently failing (likely find_placement returning None repeatedly or the warpgate having no ready units due to the cheese state logic).
+The bot is in severe decline (20% recent vs 44.2% all-time). The dominant pattern across 7 of 10 recent games is total worker wipe before t=180s (Games 1, 4, 7) or between t=180-300s (Games 3, 6, 8, 9), after which the bot sits dead with 0 workers, 0 army, and ~20 minerals for hundreds of seconds yet never concedes. The worker defense code is actively harmful: the condition `enemy_near_base_early = self.enemy_units.closer_than(40, self.start_location)` combined with `army.amount < 3` triggers ALL workers to attack-move every step when any enemy is within 40 units, which suicides them into the enemy force. Additionally, Game 6 reveals the bot never surrenders when all workers/army are dead — it runs for 35+ minutes doing nothing, wasting ladder time. The _attack function also sends all workers to fight when `army.amount < 3 and all_enemy_near_base`, which is the mass-worker-suicide pattern causing most losses.
 
 ## Applied Improvements
-- Fix the silent army production failure in dt_rush/four_gate: when cheese is active and army is 0 after t=240s, force-train zealots from idle gateways and attempt warpgate warpin every step, bypassing the spawn_near placement that may be returning None by using a position closer to the nexus
-- Fix worker-wipe defense: instead of sending ALL workers to attack (which just kills them faster), only pull a small number of workers (max 4) to defend and keep the rest mining, unless the nexus itself is under direct attack — this prevents the mass-worker-suicide pattern seen in games 1,3,4,5,6,7,8,9
-- Fix games 3,7,9 where dt_rush/four_gate produce 0 army for 600+ seconds: add a hard override that disables cheese_active and forces standard macro mode when army is 0 after t=360s regardless of cheese type, since the cheese has clearly failed by then
+- Fix the primary worker-suicide bug: the on_step worker defense pulls workers to attack whenever ANY enemy is within 40 units AND army<3, which fires constantly during normal early-game scouting and suicides all workers; raise the proximity threshold to 20 units and require enemy_near_base to have actual combat units (not just workers/overlords) before pulling workers
+- Fix the _attack worker-suicide: the block that sends ALL workers to attack when army<3 and enemy is near base triggers on scout probes or any unit within 30 units, wiping the economy; restrict this to only fire when enemy combat units (non-workers) are within 20 units AND workers are already under direct attack (within 10 units)
+- Add an auto-surrender when the game is clearly lost (0 workers, 0 army, 0 bases or nexus under attack with no hope of recovery for 60+ seconds) to stop the bot from sitting dead for 35 minutes like Game 6, which wastes ladder MMR time and distorts statistics

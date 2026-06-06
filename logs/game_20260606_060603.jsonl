@@ -1,0 +1,9 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "b01e84e6-cfcd-4951-b5af-089c73ec8cc2", "opponent_race": "Random", "map_name": "Torches AIE", "strategy": "dt_rush"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 9.0, "minute": 1, "workers": 16, "bases": 1, "supply_used": 16, "supply_cap": 31, "supply_left": 15, "minerals": 15, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 17.4, "minute": 2, "workers": 20, "bases": 1, "supply_used": 21, "supply_cap": 55, "supply_left": 34, "minerals": 65, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 27.1, "minute": 3, "workers": 22, "bases": 1, "supply_used": 24, "supply_cap": 55, "supply_left": 31, "minerals": 540, "vespene": 204, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 37.3, "minute": 4, "workers": 22, "bases": 1, "supply_used": 28, "supply_cap": 55, "supply_left": 27, "minerals": 470, "vespene": 104, "army_count": 1, "cheese_active": true}
+{"event": "periodic", "game_time": 300.0, "wall_s": 47.6, "minute": 5, "workers": 22, "bases": 1, "supply_used": 40, "supply_cap": 55, "supply_left": 15, "minerals": 90, "vespene": 224, "army_count": 6, "cheese_active": true}
+{"event": "periodic", "game_time": 360.0, "wall_s": 60.2, "minute": 6, "workers": 22, "bases": 1, "supply_used": 58, "supply_cap": 79, "supply_left": 21, "minerals": 155, "vespene": 48, "army_count": 17, "cheese_active": true}
+{"event": "game_end", "game_time": 390.2, "wall_s": 67.1, "result": "Victory", "final_workers": 22, "final_bases": 1, "final_supply": 64, "strategy": "dt_rush", "opponent_race": "Protoss"}

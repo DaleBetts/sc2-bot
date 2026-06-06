@@ -1,0 +1,4 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "b01e84e6-cfcd-4951-b5af-089c73ec8cc2", "opponent_race": "Random", "map_name": "Pylon AIE", "strategy": "four_gate"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 26.0, "minute": 1, "workers": 15, "bases": 1, "supply_used": 16, "supply_cap": 23, "supply_left": 7, "minerals": 35, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "game_end", "game_time": 92.8, "wall_s": 38.9, "result": "Victory", "final_workers": 18, "final_bases": 1, "final_supply": 19, "strategy": "four_gate", "opponent_race": "Terran"}

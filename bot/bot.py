@@ -693,11 +693,20 @@ class CompetitiveBot(BotAI):
             and self.townhalls.amount < 3
             and self.can_afford(UnitTypeId.NEXUS)
         )
+        # Emergency expand: if we have 40+ workers on 1 base we are massively oversaturated
+        # This catches the Game 2 pattern where cheese ends but bot never expands
+        oversaturated_expand = (
+            self.townhalls.amount == 1
+            and self.workers.amount >= 40
+            and not self.already_pending(UnitTypeId.NEXUS)
+            and self.can_afford(UnitTypeId.NEXUS)
+        )
         if (
             (self.townhalls.amount < target and has_defense and not self.already_pending(UnitTypeId.NEXUS) and self.can_afford(UnitTypeId.NEXUS))
             or force_expand
             or large_economy_expand
             or four_gate_mid_expand
+            or oversaturated_expand
         ):
             await self.expand_now()
 
@@ -789,7 +798,17 @@ class CompetitiveBot(BotAI):
         # Force attack immediately with large armies to prevent stall (Games 9/10 pattern)
         # Lower threshold to 12 so bot doesn't float minerals while army stagnates on 2 bases
         force_attack_threshold = 12 if not self._cheese_active else 20
-        if army.amount >= force_attack_threshold:
+        # Track last attack time to prevent permanent camping (Game 2 pattern: 33 army sits idle forever)
+        if not hasattr(self, '_last_attack_time'):
+            self._last_attack_time = 0.0
+        supply_utilization = self.supply_used / max(1, self.supply_cap)
+        timed_out_attack = (
+            army.amount >= 20
+            and supply_utilization >= 0.75
+            and self.time - self._last_attack_time > 120
+        )
+        if army.amount >= force_attack_threshold or timed_out_attack:
+            self._last_attack_time = self.time
             for unit in army:
                 unit.attack(target)
             return

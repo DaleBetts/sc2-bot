@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 44.5% (246W / 264L over 553 games)
+**All-time win rate:** 44.0% (252W / 277L over 573 games)
 
-**Recent 10-game win rate:** ↑ improving (recent 80.0% vs all-time 44.5%)
+**Recent 10-game win rate:** ↓ declining (recent 20.0% vs all-time 44.0%)
 
 **By race (all-time):**
-- Zerg: 71W / 85L  avg game 659s
-- Protoss: 110W / 92L  avg game 654s
+- Zerg: 71W / 93L  avg game 655s
+- Protoss: 116W / 95L  avg game 659s
 - Random: 35W / 32L  avg game 645s
-- Terran: 30W / 55L  avg game 661s
+- Terran: 30W / 57L  avg game 660s
 
 **By strategy (all-time):**
-- standard_macro: 90W / 153L
-- dt_rush: 80W / 51L
-- four_gate: 76W / 60L
+- standard_macro: 93W / 160L
+- dt_rush: 81W / 52L
+- four_gate: 78W / 65L
 
 **By strategy (recent 10 games):**
-- four_gate: 2W / 0L
-- standard_macro: 2W / 0L
-- dt_rush: 4W / 0L
+- dt_rush: 1W / 1L
+- standard_macro: 1W / 3L
+- four_gate: 0W / 3L
 
 **Analysis:**
-The bot is performing excellently in recent games with an 80% win rate (up from 44.5% all-time), showing the previous fixes have been highly effective. However, two structural issues remain: Game 2 and Game 6 both end as Ties rather than wins — Game 2 shows the bot completely freezing at t=480s with 42 workers, 33 army, and 15 minerals forever (stuck in a 1-base stall with 108/135 supply), and Game 6 shows a worker wipe down to 11 workers with 0 army and 10 minerals from t=120s onward. Additionally, Games 1, 3, 5, 7, 8, 9, 10 all show the bot staying on 1 base far too long despite having 22+ workers and sufficient army — the four_gate_mid_expand and post_cheese_expand triggers are clearly not firing reliably enough during the critical window when cheese expires around t=480s.
+The recent 20% win rate (vs 44% all-time) shows severe regression. The critical failure pattern is workers being wiped out extremely early: Games 5, 7, 9 all end with 0 workers before t=300s, Game 2 loses all workers by t=480s, Game 6 loses all workers at t=480s, and Game 8 has 0 workers at t=240s with 915 minerals unspent. The worker defense code in _maybe_log_periodic and _attack is still triggering mass worker suicide - the 'enemy near base' conditions are firing on scouts/early units and sending workers to their deaths. Game 1 shows a separate stall bug: 42 workers on 1 base with 0 army from t=720s onward, and Game 3 shows the same permanent freeze with 60 army units that never attacks (the timed_out_attack condition at supply_utilization>=0.75 is clearly not firing because supply=162/183=88.5% which should exceed 75%, meaning the attack timer is resetting or _last_attack_time is being updated incorrectly). The four_gate strategy has a 0-3 record recently and appears catastrophically broken, killing workers almost immediately.
 
 ## Applied Improvements
-- Fix Game 2's permanent freeze: the bot reaches supply cap (108/135) on 1 base with 42 workers and never expands or attacks — add a hard override that forces expansion when on 1 base with 40+ workers regardless of cheese state, and force an all-out attack when army >= 20 and has been idle for 60+ seconds at supply near cap
-- Wire the oversaturated_expand condition into the expand trigger, and also lower the post_cheese_expand worker threshold from 22 to 20 to catch the common case where cheese ends at t=480 with exactly 22 workers
-- Fix Game 2's permanent stall by tracking last-attack time and forcing an all-out attack when army >= 20 and supply utilization is above 75% and we haven't attacked in 120+ seconds, preventing the bot from camping forever with a large army
+- Remove the mass worker-attack logic from _attack() that sends ALL workers to fight whenever enemy units are near base - this is the primary cause of worker wipes in Games 2,5,6,7,8,9; replace with a much more conservative defense that only pulls workers when nexus is directly under attack
+- Remove the aggressive worker-pulling block at the top of _attack() that sends all workers to attack when army=0 and any enemy is near base - this fires constantly in early game before army exists and suicides all workers (root cause of Games 5,7,9 early wipes)
+- Fix Game 3's permanent stall (60 army, 42 workers, never attacks for 40+ minutes) and Game 1's stall by resetting _last_attack_time when the army attacks so timed_out_attack fires correctly, and lower the timed_out_attack threshold to army>=10 with 90s idle to prevent camping

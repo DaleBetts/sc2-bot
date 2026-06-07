@@ -719,31 +719,18 @@ class CompetitiveBot(BotAI):
             army_types = army_types - {UnitTypeId.DARKTEMPLAR}
         army = self.units.filter(lambda u: u.type_id in army_types)
 
-        # Emergency: if enemy units are near ANY of our structures or workers, pull all workers
-        all_enemy_near_base = self.enemy_units.closer_than(30, self.start_location)
-        for th in self.townhalls:
-            close = self.enemy_units.closer_than(25, th.position)
-            if close:
-                all_enemy_near_base = all_enemy_near_base | close
-        for worker in self.workers:
-            close = self.enemy_units.closer_than(15, worker.position)
-            if close:
-                all_enemy_near_base = all_enemy_near_base | close
-        if not army and all_enemy_near_base:
-            for worker in self.workers:
-                worker.attack(all_enemy_near_base.closest_to(worker))
-            return
-        # Also defend if army is tiny and enemy combat units are directly threatening workers
-        combat_near_workers = self.enemy_units.filter(
+        # Only defend with workers when enemy combat units are literally on top of our nexus
+        combat_near_nexus = self.enemy_units.filter(
             lambda u: u.type_id not in _WORKER_TYPES and u.type_id != UnitTypeId.OVERLORD
-        ).closer_than(10, self.start_location)
-        if army.amount < 3 and combat_near_workers:
+        ).closer_than(5, self.start_location)
+        if combat_near_nexus:
             for unit in army:
-                unit.attack(combat_near_workers.closest_to(unit))
-            # Only pull workers actually being attacked, not all workers
-            workers_under_fire = self.workers.filter(lambda w: w.is_attacking or self.enemy_units.closer_than(5, w).amount > 0)
-            for worker in workers_under_fire:
-                worker.attack(combat_near_workers.closest_to(worker))
+                unit.attack(combat_near_nexus.closest_to(unit))
+            if army.amount < 3:
+                # Pull only workers actually within 5 units of the threat
+                workers_under_fire = self.workers.closer_than(5, combat_near_nexus.center)
+                for worker in workers_under_fire:
+                    worker.attack(combat_near_nexus.closest_to(worker))
             return
 
         if not army:
@@ -753,18 +740,15 @@ class CompetitiveBot(BotAI):
         if near_base:
             for unit in army:
                 unit.attack(near_base.closest_to(unit))
-            # Pull workers to defend — scale aggressively with threat size
-            worker_defenders = self.workers.closer_than(25, self.start_location)
-            if army.amount == 0:
-                # No army at all — pull ALL workers or we die
-                for worker in worker_defenders:
-                    worker.attack(near_base.closest_to(worker))
-            elif army.amount < near_base.amount * 2 + 2:
-                # Overwhelmed — pull ALL nearby workers
-                for worker in worker_defenders:
-                    worker.attack(near_base.closest_to(worker))
-            elif army.amount < 6:
-                max_defenders = min(worker_defenders.amount, max(8, near_base.amount * 2))
+            # Only pull workers if nexus is directly under attack — pulling workers
+            # on any nearby enemy is the primary cause of worker wipes
+            nexus_under_direct_attack = any(
+                self.enemy_units.closer_than(4, th.position)
+                for th in self.townhalls
+            )
+            if nexus_under_direct_attack and army.amount < 4:
+                worker_defenders = self.workers.closer_than(15, self.start_location)
+                max_defenders = min(4, worker_defenders.amount)
                 for worker in worker_defenders[:max_defenders]:
                     worker.attack(near_base.closest_to(worker))
             return
@@ -803,9 +787,8 @@ class CompetitiveBot(BotAI):
             self._last_attack_time = 0.0
         supply_utilization = self.supply_used / max(1, self.supply_cap)
         timed_out_attack = (
-            army.amount >= 20
-            and supply_utilization >= 0.75
-            and self.time - self._last_attack_time > 120
+            army.amount >= 10
+            and self.time - self._last_attack_time > 90
         )
         if army.amount >= force_attack_threshold or timed_out_attack:
             self._last_attack_time = self.time

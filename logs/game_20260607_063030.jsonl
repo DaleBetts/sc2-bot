@@ -1,0 +1,7 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "a5bbbc18-a7cd-4f62-88a3-dff3a4f3ef7b", "opponent_race": "Zerg", "map_name": "Pylon AIE", "strategy": "four_gate"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 14.1, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 60, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 27.1, "minute": 2, "workers": 17, "bases": 1, "supply_used": 17, "supply_cap": 47, "supply_left": 30, "minerals": 10, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 42.5, "minute": 3, "workers": 16, "bases": 1, "supply_used": 16, "supply_cap": 47, "supply_left": 31, "minerals": 10, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 55.7, "minute": 4, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 47, "supply_left": 47, "minerals": 10, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "game_end", "game_time": 271.9, "wall_s": 63.4, "result": "Defeat", "final_workers": 0, "final_bases": 1, "final_supply": 0, "strategy": "four_gate", "opponent_race": "Zerg"}

@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 44.0% (252W / 277L over 573 games)
+**All-time win rate:** 44.1% (261W / 287L over 592 games)
 
-**Recent 10-game win rate:** ↓ declining (recent 20.0% vs all-time 44.0%)
+**Recent 10-game win rate:** ↓ declining (recent 40.0% vs all-time 44.1%)
 
 **By race (all-time):**
-- Zerg: 71W / 93L  avg game 655s
-- Protoss: 116W / 95L  avg game 659s
-- Random: 35W / 32L  avg game 645s
-- Terran: 30W / 57L  avg game 660s
+- Zerg: 73W / 94L  avg game 658s
+- Protoss: 120W / 102L  avg game 659s
+- Random: 36W / 32L  avg game 640s
+- Terran: 32W / 59L  avg game 662s
 
 **By strategy (all-time):**
-- standard_macro: 93W / 160L
-- dt_rush: 81W / 52L
-- four_gate: 78W / 65L
+- standard_macro: 96W / 165L
+- dt_rush: 84W / 53L
+- four_gate: 81W / 69L
 
 **By strategy (recent 10 games):**
+- standard_macro: 2W / 3L
 - dt_rush: 1W / 1L
-- standard_macro: 1W / 3L
-- four_gate: 0W / 3L
+- four_gate: 1W / 2L
 
 **Analysis:**
-The recent 20% win rate (vs 44% all-time) shows severe regression. The critical failure pattern is workers being wiped out extremely early: Games 5, 7, 9 all end with 0 workers before t=300s, Game 2 loses all workers by t=480s, Game 6 loses all workers at t=480s, and Game 8 has 0 workers at t=240s with 915 minerals unspent. The worker defense code in _maybe_log_periodic and _attack is still triggering mass worker suicide - the 'enemy near base' conditions are firing on scouts/early units and sending workers to their deaths. Game 1 shows a separate stall bug: 42 workers on 1 base with 0 army from t=720s onward, and Game 3 shows the same permanent freeze with 60 army units that never attacks (the timed_out_attack condition at supply_utilization>=0.75 is clearly not firing because supply=162/183=88.5% which should exceed 75%, meaning the attack timer is resetting or _last_attack_time is being updated incorrectly). The four_gate strategy has a 0-3 record recently and appears catastrophically broken, killing workers almost immediately.
+The recent 40% win rate is below the all-time 44.1%, indicating decline. The most critical pattern is permanent stalls after cheese strategies fail: Game 4 (four_gate) freezes at army=1 from t=600s to t=1860s on 1 base, Game 9 (standard_macro) freezes at army=13-14 from t=840s to t=1260s on 1 base never expanding or attacking, and Games 5/7/8 show worker wipes leaving 0 workers and 0 army. Game 7 is particularly severe with workers dropping from 18 to 2 by t=300s suggesting the worker-defense logic in _maybe_log_periodic is still pulling workers into combat early game. Game 9 stalls because the bot stays on 1 base with 40-42 workers and army of 13-14 never attacking despite timed_out_attack supposedly triggering at army>=10 after 90s idle — the _last_attack_time reset appears broken. Game 4 stalls because after four_gate cheese the army collapses to 1-3 units from t=600s onward and the bot never rebuilds enough to trigger the force_attack_threshold=12.
 
 ## Applied Improvements
-- Remove the mass worker-attack logic from _attack() that sends ALL workers to fight whenever enemy units are near base - this is the primary cause of worker wipes in Games 2,5,6,7,8,9; replace with a much more conservative defense that only pulls workers when nexus is directly under attack
-- Remove the aggressive worker-pulling block at the top of _attack() that sends all workers to attack when army=0 and any enemy is near base - this fires constantly in early game before army exists and suicides all workers (root cause of Games 5,7,9 early wipes)
-- Fix Game 3's permanent stall (60 army, 42 workers, never attacks for 40+ minutes) and Game 1's stall by resetting _last_attack_time when the army attacks so timed_out_attack fires correctly, and lower the timed_out_attack threshold to army>=10 with 90s idle to prevent camping
+- Fix Game 9's permanent stall: the timed_out_attack fires but _last_attack_time gets reset to self.time each trigger, so the army just attacks once and re-idles; add a post-attack rally reset and ensure that when timed_out_attack fires with army>=10 on 1 base we also force an expand to break the 1-base deadlock
+- Fix Game 4's permanent post-cheese stall where army stays at 1-3 for 20+ minutes: after cheese expires (time>=480) and army<6, aggressively lower force_attack_threshold to 3 and lower post_cheese_army_emergency threshold so zealots are trained and immediately sent to attack rather than camping
+- Fix Game 7's early worker wipe (workers 18->2 by t=300s): the should_defend_workers condition in _maybe_log_periodic fires when enemy_near_base_early is non-empty AND army<3, which is true almost all early game; this pulls up to 4 workers into combat against any scouting probe and chains into worker deaths; require the enemy units to be within 15 units (not 20) AND at least 2 enemy combat units present before pulling workers

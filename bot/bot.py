@@ -141,10 +141,10 @@ class CompetitiveBot(BotAI):
         current_army_count = self.units.filter(lambda u: u.type_id in army_types).amount
         enemy_near_base_early = self.enemy_units.filter(
             lambda u: u.type_id not in _WORKER_TYPES and u.type_id != UnitTypeId.OVERLORD
-        ).closer_than(20, self.start_location)
+        ).closer_than(15, self.start_location)
         should_defend_workers = (
             (worker_drop >= 2 and self.workers.amount > 0)
-            or (enemy_near_base_early and current_army_count < 3 and self.workers.amount > 0)
+            or (enemy_near_base_early.amount >= 2 and current_army_count < 3 and self.workers.amount > 0)
         )
         if should_defend_workers:
             all_enemies = self.enemy_units
@@ -781,7 +781,15 @@ class CompetitiveBot(BotAI):
         )
         # Force attack immediately with large armies to prevent stall (Games 9/10 pattern)
         # Lower threshold to 12 so bot doesn't float minerals while army stagnates on 2 bases
-        force_attack_threshold = 12 if not self._cheese_active else 20
+        # Post-cheese: if army is tiny after cheese expired, attack immediately to end the game
+        # rather than sitting idle for 20+ minutes (Game 4 pattern)
+        post_cheese_stall = (
+            self._cheese_type is not None
+            and not self._cheese_active
+            and self.time >= 600
+            and army.amount >= 3
+        )
+        force_attack_threshold = 3 if post_cheese_stall else (12 if not self._cheese_active else 20)
         # Track last attack time to prevent permanent camping (Game 2 pattern: 33 army sits idle forever)
         if not hasattr(self, '_last_attack_time'):
             self._last_attack_time = 0.0
@@ -790,8 +798,11 @@ class CompetitiveBot(BotAI):
             army.amount >= 10
             and self.time - self._last_attack_time > 90
         )
+        # Also force expand when stalled on 1 base with large army — Game 9 pattern
+        if timed_out_attack and self.townhalls.amount == 1 and self.workers.amount >= 30 and self.can_afford(UnitTypeId.NEXUS) and not self.already_pending(UnitTypeId.NEXUS):
+            await self.expand_now()
         if army.amount >= force_attack_threshold or timed_out_attack:
-            self._last_attack_time = self.time
+            self._last_attack_time = self.time + 30  # Add buffer so attack waves sustain rather than immediately re-idling
             for unit in army:
                 unit.attack(target)
             return

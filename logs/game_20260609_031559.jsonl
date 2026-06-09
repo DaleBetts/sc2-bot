@@ -1,0 +1,9 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "9c63d6d3-a5f9-48d6-b6c2-bbd6b055ff2a", "opponent_race": "Protoss", "map_name": "Ultralove AIE", "strategy": "four_gate"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 10.4, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 85, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 22.0, "minute": 2, "workers": 20, "bases": 1, "supply_used": 24, "supply_cap": 47, "supply_left": 23, "minerals": 135, "vespene": 72, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 33.8, "minute": 3, "workers": 22, "bases": 1, "supply_used": 28, "supply_cap": 47, "supply_left": 19, "minerals": 510, "vespene": 284, "army_count": 1, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 44.0, "minute": 4, "workers": 22, "bases": 1, "supply_used": 40, "supply_cap": 95, "supply_left": 55, "minerals": 45, "vespene": 500, "army_count": 5, "cheese_active": true}
+{"event": "periodic", "game_time": 300.0, "wall_s": 55.5, "minute": 5, "workers": 22, "bases": 1, "supply_used": 54, "supply_cap": 95, "supply_left": 41, "minerals": 100, "vespene": 674, "army_count": 15, "cheese_active": true}
+{"event": "periodic", "game_time": 360.0, "wall_s": 69.4, "minute": 6, "workers": 22, "bases": 1, "supply_used": 76, "supply_cap": 95, "supply_left": 19, "minerals": 15, "vespene": 994, "army_count": 26, "cheese_active": true}
+{"event": "game_end", "game_time": 415.8, "wall_s": 84.2, "result": "Victory", "final_workers": 22, "final_bases": 1, "final_supply": 86, "strategy": "four_gate", "opponent_race": "Protoss"}

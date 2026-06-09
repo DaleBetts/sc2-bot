@@ -756,11 +756,8 @@ class CompetitiveBot(BotAI):
         if enemy_near_workers:
             for unit in army:
                 unit.attack(enemy_near_workers.closest_to(unit))
-            # Also pull workers when enemy is directly on top of workers
-            if army.amount < enemy_near_workers.amount * 2:
-                worker_defenders = self.workers.closer_than(20, self.start_location)
-                for worker in worker_defenders:
-                    worker.attack(enemy_near_workers.closest_to(worker))
+            # Do NOT pull workers here — worker pulling causes mass worker suicides (Game 8 pattern)
+            # Worker defense is handled conservatively in _maybe_log_periodic
             return
 
         # 4-gate attacks with 6 units; standard attacks with 4 units to apply early pressure; force attack after 10 min
@@ -790,6 +787,13 @@ class CompetitiveBot(BotAI):
             and army.amount >= 3
         )
         force_attack_threshold = 3 if post_cheese_stall else (12 if not self._cheese_active else 20)
+        # Emergency: if minerals are massively floated with a large army, the bot is in a permanent
+        # stall loop — force attack immediately to break out (Game 4 pattern: 32 army, 35k minerals)
+        if army.amount >= 20 and self.minerals > 5000 and self.time > 600:
+            self._last_attack_time = 0.0
+            for unit in army:
+                unit.attack(target)
+            return
         # Track last attack time to prevent permanent camping (Game 2 pattern: 33 army sits idle forever)
         if not hasattr(self, '_last_attack_time'):
             self._last_attack_time = 0.0
@@ -802,7 +806,7 @@ class CompetitiveBot(BotAI):
         if timed_out_attack and self.townhalls.amount == 1 and self.workers.amount >= 30 and self.can_afford(UnitTypeId.NEXUS) and not self.already_pending(UnitTypeId.NEXUS):
             await self.expand_now()
         if army.amount >= force_attack_threshold or timed_out_attack:
-            self._last_attack_time = self.time + 30  # Add buffer so attack waves sustain rather than immediately re-idling
+            self._last_attack_time = self.time  # Reset to now so next timed_out_attack fires after 90s of true idling
             for unit in army:
                 unit.attack(target)
             return

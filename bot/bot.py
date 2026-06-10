@@ -701,12 +701,24 @@ class CompetitiveBot(BotAI):
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
         )
+        # Fix Game 1 permanent stall: large army was wiped, bot has huge worker count
+        # on 1 base with tiny army and never recovers — force expand immediately
+        post_battle_expand = (
+            self.townhalls.amount == 1
+            and self.workers.amount >= 30
+            and self.supply_cap >= 100
+            and self.units.filter(lambda u: u.type_id in (army_types)).amount < 4
+            and self.time > 600
+            and not self.already_pending(UnitTypeId.NEXUS)
+            and self.can_afford(UnitTypeId.NEXUS)
+        )
         if (
             (self.townhalls.amount < target and has_defense and not self.already_pending(UnitTypeId.NEXUS) and self.can_afford(UnitTypeId.NEXUS))
             or force_expand
             or large_economy_expand
             or four_gate_mid_expand
             or oversaturated_expand
+            or post_battle_expand
         ):
             await self.expand_now()
 
@@ -798,9 +810,12 @@ class CompetitiveBot(BotAI):
         if not hasattr(self, '_last_attack_time'):
             self._last_attack_time = 0.0
         supply_utilization = self.supply_used / max(1, self.supply_cap)
+        # Lower threshold vs Zerg on 1 base — camping with small army while being overrun (Games 6, 8)
+        idle_threshold = 60 if (self._vs_zerg and self.townhalls.amount <= 1) else 90
+        min_army_for_timeout = 7 if (self._vs_zerg and self.townhalls.amount <= 1) else 10
         timed_out_attack = (
-            army.amount >= 10
-            and self.time - self._last_attack_time > 90
+            army.amount >= min_army_for_timeout
+            and self.time - self._last_attack_time > idle_threshold
         )
         # Also force expand when stalled on 1 base with large army — Game 9 pattern
         if timed_out_attack and self.townhalls.amount == 1 and self.workers.amount >= 30 and self.can_afford(UnitTypeId.NEXUS) and not self.already_pending(UnitTypeId.NEXUS):

@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 45.5% (293W / 304L over 644 games)
+**All-time win rate:** 45.9% (308W / 315L over 671 games)
 
-**Recent 10-game win rate:** ↑ improving (recent 60.0% vs all-time 45.5%)
+**Recent 10-game win rate:** ↑ improving (recent 60.0% vs all-time 45.9%)
 
 **By race (all-time):**
-- Zerg: 82W / 97L  avg game 660s
-- Protoss: 132W / 110L  avg game 664s
-- Random: 39W / 34L  avg game 630s
-- Terran: 40W / 63L  avg game 650s
+- Zerg: 86W / 99L  avg game 662s
+- Protoss: 141W / 113L  avg game 663s
+- Random: 40W / 36L  avg game 627s
+- Terran: 41W / 67L  avg game 653s
 
 **By strategy (all-time):**
-- standard_macro: 106W / 172L
-- dt_rush: 92W / 59L
-- four_gate: 95W / 73L
+- standard_macro: 114W / 177L
+- dt_rush: 95W / 62L
+- four_gate: 99W / 76L
 
 **By strategy (recent 10 games):**
-- four_gate: 2W / 1L
-- standard_macro: 3W / 2L
-- dt_rush: 1W / 0L
+- standard_macro: 5W / 3L
+- dt_rush: 0W / 1L
+- four_gate: 1W / 0L
 
 **Analysis:**
-The bot has improved significantly from 45.5% all-time to 60.0% in recent games, indicating recent fixes are working. However, Game 1 (Tie vs Protoss) shows a critical failure pattern: the bot builds 58 army supply on 1 base by t=900s, then the army completely collapses (army drops from 58 to 1 by t=1200s) and the bot enters a permanent stall with 42 workers, 1 army, 60 minerals, and 135 supply cap for 15+ minutes - the army died in an attack and the bot never rebuilt. Games 6 and 8 show the bot losing to Zerg with standard_macro: in Game 6 the army stays tiny (2-5 units) until the base is destroyed at t=600s, suggesting production is failing vs Zerg pressure; in Game 8 the four_gate army peaks at 27 then bleeds away while on 1 base until workers are wiped at t=960s, indicating the bot attacks into a wall and the economy never recovers. The single-base stall pattern (Game 1: 40 workers on 1 base for the entire game, never expanding) is the most glaring structural issue.
+Recent win rate (60%) is significantly above all-time (45.9%), showing clear improvement. However, 3 of 4 losses share critical failure patterns: Game 7 (PvP) shows a catastrophic 1-base stall where 58 army units sit completely idle from t=840s to t=1140s with supply_cap=191 and minerals staying at 70 — the timed_out_attack should fire but army never moves, suggesting the attack target logic is failing or the army is stuck in a rally loop after supply_cap hits max. Game 1 (PvZ) shows army collapsing from 14 to 2 by t=600s then workers dying out — classic post-battle stall with no recovery. Game 5 (DT rush PvP) is a worker wipe at t=240s with workers dropping from 22 to 2, indicating enemy DTs killed all workers while our DT rush was still building — the worker defense logic failed. Game 8 (PvT) shows army dropping from 12 to 0 between t=300-540s with workers then dying, another failed defense scenario.
 
 ## Applied Improvements
-- Fix Game 1's permanent post-battle stall: after the army is wiped (army<3 and supply_cap>=135 and workers>=40 and bases==1) the bot never rebuilds or expands; force an immediate expand and lower army rally threshold to 3 to get units moving again after losing a big army on 1 base
-- Include post_battle_expand in the expand condition to actually trigger the fix for Game 1's permanent 1-base stall after army wipe
-- Fix Game 6 and Game 8 Zerg losses where army stays tiny (2-5 units) while enemy destroys the base: reduce timed_out_attack threshold to 7 units (from 10) and 60s idle (from 90s) when on 1 base vs Zerg so the bot doesn't camp waiting for a critical mass that never arrives while being overrun
+- Fix Game 7's permanent stall (58 army, supply_cap=191, never attacks): when supply_cap>=150 and army>=40 and minerals<200 (economy not floated) and time-since-last-attack>60s, force attack regardless of other conditions — this catches the case where the army is maxed-out but the force_attack_threshold logic fails to trigger
+- Fix Game 5's worker wipe during DT rush: when cheese is active and enemy units are detected near base early, the bot should pull workers to defend even during cheese — currently the should_defend_workers logic only pulls workers if army<3 but during DT rush army is 0 for a long time; specifically during DT rush allow worker defense when any enemy combat units are within 10 units of start location
+- Fix Game 1 and Game 8 post-battle collapse: after army drops from a high count to near-zero (army<=3) with workers>=20 and time>480, lower the timed_out_attack idle threshold to 30s and min_army to 3 so newly rebuilt units attack immediately rather than camping at rally waiting for a critical mass that never comes while the base is being destroyed

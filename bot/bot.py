@@ -142,9 +142,19 @@ class CompetitiveBot(BotAI):
         enemy_near_base_early = self.enemy_units.filter(
             lambda u: u.type_id not in _WORKER_TYPES and u.type_id != UnitTypeId.OVERLORD
         ).closer_than(15, self.start_location)
+        # During DT rush, army is intentionally 0 for a long time — still need to defend workers
+        dt_rush_defense = (
+            self._cheese_active
+            and self._cheese_type == _CHEESE_DT
+            and self.enemy_units.filter(
+                lambda u: u.type_id not in _WORKER_TYPES and u.type_id != UnitTypeId.OVERLORD
+            ).closer_than(10, self.start_location).amount >= 1
+            and self.workers.amount > 0
+        )
         should_defend_workers = (
             (worker_drop >= 2 and self.workers.amount > 0)
             or (enemy_near_base_early.amount >= 2 and current_army_count < 3 and self.workers.amount > 0)
+            or dt_rush_defense
         )
         if should_defend_workers:
             all_enemies = self.enemy_units
@@ -806,13 +816,38 @@ class CompetitiveBot(BotAI):
             for unit in army:
                 unit.attack(target)
             return
+        # Fix Game 7 pattern: maxed/near-maxed army camping forever with normal mineral levels
+        # supply_cap>=150 means late game, army>=40 means massive force — just attack
+        if self.supply_cap >= 150 and army.amount >= 40 and self.time - self._last_attack_time > 60:
+            self._last_attack_time = self.time
+            for unit in army:
+                unit.attack(target)
+            return
         # Track last attack time to prevent permanent camping (Game 2 pattern: 33 army sits idle forever)
         if not hasattr(self, '_last_attack_time'):
             self._last_attack_time = 0.0
         supply_utilization = self.supply_used / max(1, self.supply_cap)
+        # Detect post-battle recovery state: had big army, now tiny, workers still alive
+        _peak_army = getattr(self, '_peak_army_seen', 0)
+        if army.amount > _peak_army:
+            self._peak_army_seen = army.amount
+            _peak_army = army.amount
+        post_battle_collapse = (
+            _peak_army >= 10
+            and army.amount <= 4
+            and self.workers.amount >= 20
+            and self.time > 480
+        )
         # Lower threshold vs Zerg on 1 base — camping with small army while being overrun (Games 6, 8)
-        idle_threshold = 60 if (self._vs_zerg and self.townhalls.amount <= 1) else 90
-        min_army_for_timeout = 7 if (self._vs_zerg and self.townhalls.amount <= 1) else 10
+        if post_battle_collapse:
+            idle_threshold = 30
+            min_army_for_timeout = 3
+        elif self._vs_zerg and self.townhalls.amount <= 1:
+            idle_threshold = 60
+            min_army_for_timeout = 7
+        else:
+            idle_threshold = 90
+            min_army_for_timeout = 10
         timed_out_attack = (
             army.amount >= min_army_for_timeout
             and self.time - self._last_attack_time > idle_threshold

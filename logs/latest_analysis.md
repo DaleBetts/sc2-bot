@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 45.9% (308W / 315L over 671 games)
+**All-time win rate:** 45.9% (321W / 331L over 700 games)
 
-**Recent 10-game win rate:** ↑ improving (recent 60.0% vs all-time 45.9%)
+**Recent 10-game win rate:** ↑ improving (recent 50.0% vs all-time 45.9%)
 
 **By race (all-time):**
-- Zerg: 86W / 99L  avg game 662s
-- Protoss: 141W / 113L  avg game 663s
-- Random: 40W / 36L  avg game 627s
-- Terran: 41W / 67L  avg game 653s
+- Zerg: 88W / 105L  avg game 660s
+- Protoss: 147W / 119L  avg game 660s
+- Random: 42W / 36L  avg game 625s
+- Terran: 44W / 71L  avg game 647s
 
 **By strategy (all-time):**
-- standard_macro: 114W / 177L
-- dt_rush: 95W / 62L
-- four_gate: 99W / 76L
+- standard_macro: 120W / 189L
+- dt_rush: 98W / 63L
+- four_gate: 103W / 79L
 
 **By strategy (recent 10 games):**
-- standard_macro: 5W / 3L
-- dt_rush: 0W / 1L
-- four_gate: 1W / 0L
+- four_gate: 3W / 2L
+- standard_macro: 0W / 3L
+- dt_rush: 2W / 0L
 
 **Analysis:**
-Recent win rate (60%) is significantly above all-time (45.9%), showing clear improvement. However, 3 of 4 losses share critical failure patterns: Game 7 (PvP) shows a catastrophic 1-base stall where 58 army units sit completely idle from t=840s to t=1140s with supply_cap=191 and minerals staying at 70 — the timed_out_attack should fire but army never moves, suggesting the attack target logic is failing or the army is stuck in a rally loop after supply_cap hits max. Game 1 (PvZ) shows army collapsing from 14 to 2 by t=600s then workers dying out — classic post-battle stall with no recovery. Game 5 (DT rush PvP) is a worker wipe at t=240s with workers dropping from 22 to 2, indicating enemy DTs killed all workers while our DT rush was still building — the worker defense logic failed. Game 8 (PvT) shows army dropping from 12 to 0 between t=300-540s with workers then dying, another failed defense scenario.
+Recent win rate (50.0%) is up from the all-time 45.9%, showing modest improvement. However, Games 3, 4, 6, 8, and 10 reveal a persistent catastrophic pattern: workers are being wiped out before t=300s (Game 3: 19->7->0 workers by t=240; Game 4: workers 30->0 by t=300; Game 6: workers 22->1->0 by t=420; Game 8: workers 40->12->0 by t=480; Game 10: workers 40->26->0 by t=480). The bot's worker defense logic is either failing to respond early enough or is itself causing the wipes by sending workers into unwinnable fights. Standard_macro is 0-3 in recent games, suggesting a fundamental vulnerability to pressure when not using cheese — the bot masses workers to 30-40 but never takes a second base or builds enough army to defend, leaving a giant worker blob vulnerable to any attack.
 
 ## Applied Improvements
-- Fix Game 7's permanent stall (58 army, supply_cap=191, never attacks): when supply_cap>=150 and army>=40 and minerals<200 (economy not floated) and time-since-last-attack>60s, force attack regardless of other conditions — this catches the case where the army is maxed-out but the force_attack_threshold logic fails to trigger
-- Fix Game 5's worker wipe during DT rush: when cheese is active and enemy units are detected near base early, the bot should pull workers to defend even during cheese — currently the should_defend_workers logic only pulls workers if army<3 but during DT rush army is 0 for a long time; specifically during DT rush allow worker defense when any enemy combat units are within 10 units of start location
-- Fix Game 1 and Game 8 post-battle collapse: after army drops from a high count to near-zero (army<=3) with workers>=20 and time>480, lower the timed_out_attack idle threshold to 30s and min_army to 3 so newly rebuilt units attack immediately rather than camping at rally waiting for a critical mass that never comes while the base is being destroyed
+- Fix Game 10's standard_macro collapse: workers reach 40 on 1 base (army only 2-8) while supply_cap never grows past 79 — the bot is massively oversaturating on 1 base with no army; force expand earlier by lowering the oversaturated threshold to 30 workers (not 40) and add a safety expand when workers>=22 and army<5 and time>300 to get a second base before the bot becomes helpless
+- Include safety_expand in the expand condition trigger to actually apply the new safety expand logic
+- Fix Games 4/8/10 standard_macro army starvation: workers reach 30-40 but army stays at 2-8 because standard_macro delays gateway unit production waiting for infrastructure; when not cheese_active and workers>=20 and army<8, aggressively train zealots from ALL gateways (not just idle) every step to build a minimum defensive force before the base gets overrun

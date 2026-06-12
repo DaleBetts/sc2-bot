@@ -449,7 +449,15 @@ class CompetitiveBot(BotAI):
             and current_army < 12
             and self.workers.amount >= 20
         )
-        if (self.minerals > 200 and current_army < 10 and not self._cheese_active) or post_cheese_army_emergency:
+        # Standard macro defense emergency: workers building up but army tiny — must train units
+        # This fixes Games 4/8/10 where bot masses workers to 40 with army<=8 and gets overrun
+        standard_macro_defense_emergency = (
+            not self._cheese_active
+            and current_army < 8
+            and self.workers.amount >= 20
+            and self.time > 240
+        )
+        if (self.minerals > 200 and current_army < 10 and not self._cheese_active) or post_cheese_army_emergency or standard_macro_defense_emergency:
             for gw in self.structures(UnitTypeId.GATEWAY).ready.idle:
                 if self.can_afford(UnitTypeId.ZEALOT) and self.supply_left > 0:
                     gw.train(UnitTypeId.ZEALOT)
@@ -703,11 +711,22 @@ class CompetitiveBot(BotAI):
             and self.townhalls.amount < 3
             and self.can_afford(UnitTypeId.NEXUS)
         )
-        # Emergency expand: if we have 40+ workers on 1 base we are massively oversaturated
+        # Emergency expand: if we have 30+ workers on 1 base we are oversaturated
         # This catches the Game 2 pattern where cheese ends but bot never expands
         oversaturated_expand = (
             self.townhalls.amount == 1
-            and self.workers.amount >= 40
+            and self.workers.amount >= 30
+            and not self.already_pending(UnitTypeId.NEXUS)
+            and self.can_afford(UnitTypeId.NEXUS)
+        )
+        # Safety expand: standard_macro with workers building up but army tiny and no base 2
+        # Prevents Game 10/8 pattern where 40 workers sit on 1 base with army=2 and get overrun
+        safety_expand = (
+            not self._cheese_active
+            and self.townhalls.amount == 1
+            and self.workers.amount >= 22
+            and self.units.filter(lambda u: u.type_id in army_types).amount < 6
+            and self.time > 300
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
         )
@@ -729,6 +748,7 @@ class CompetitiveBot(BotAI):
             or four_gate_mid_expand
             or oversaturated_expand
             or post_battle_expand
+            or safety_expand
         ):
             await self.expand_now()
 

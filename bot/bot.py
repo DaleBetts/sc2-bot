@@ -165,7 +165,7 @@ class CompetitiveBot(BotAI):
                     self.enemy_units.closer_than(5, th.position)
                     for th in self.townhalls
                 )
-                max_worker_defenders = self.workers.amount if nexus_under_attack else min(4, self.workers.amount)
+                max_worker_defenders = self.workers.amount if nexus_under_attack else min(6, self.workers.amount)
                 defending_workers = self.workers.closest_n_units(all_enemies.center, max_worker_defenders)
                 for worker in defending_workers:
                     worker.attack(all_enemies.closest_to(worker))
@@ -453,9 +453,10 @@ class CompetitiveBot(BotAI):
         # This fixes Games 4/8/10 where bot masses workers to 40 with army<=8 and gets overrun
         standard_macro_defense_emergency = (
             not self._cheese_active
-            and current_army < 8
-            and self.workers.amount >= 20
-            and self.time > 240
+            and (
+                (current_army < 8 and self.workers.amount >= 20 and self.time > 240)
+                or (current_army < 16 and self.workers.amount >= 40 and self.time > 360)
+            )
         )
         if (self.minerals > 200 and current_army < 10 and not self._cheese_active) or post_cheese_army_emergency or standard_macro_defense_emergency:
             for gw in self.structures(UnitTypeId.GATEWAY).ready.idle:
@@ -652,7 +653,16 @@ class CompetitiveBot(BotAI):
     # ── Expansion ─────────────────────────────────────────────────────────────
 
     async def _expand(self) -> None:
-        if self._cheese_active:
+        # Allow expansion even during cheese if we are in the post-cheese window
+        # (cheese window ends at t=480; bot should not be permanently locked to 1 base)
+        if self._cheese_active and not (
+            self._cheese_type is not None
+            and self.time >= 420
+            and self.townhalls.amount == 1
+            and self.workers.amount >= 20
+            and not self.already_pending(UnitTypeId.NEXUS)
+            and self.can_afford(UnitTypeId.NEXUS)
+        ):
             return  # No expansion during all-in
         target = 1 + (self.workers.amount // 12)
         # Require some defensive infrastructure before taking a second base

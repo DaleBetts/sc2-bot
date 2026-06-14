@@ -1,28 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 46.5% (337W / 338L over 724 games)
+**All-time win rate:** 47.0% (355W / 351L over 756 games)
 
-**Recent 10-game win rate:** ↑ improving (recent 70.0% vs all-time 46.5%)
+**Recent 10-game win rate:** ↑ improving (recent 70.0% vs all-time 47.0%)
 
 **By race (all-time):**
-- Zerg: 92W / 107L  avg game 661s
-- Protoss: 155W / 123L  avg game 658s
-- Random: 42W / 37L  avg game 621s
-- Terran: 48W / 71L  avg game 643s
+- Zerg: 94W / 111L  avg game 663s
+- Protoss: 166W / 128L  avg game 652s
+- Random: 43W / 38L  avg game 627s
+- Terran: 52W / 74L  avg game 641s
 
 **By strategy (all-time):**
-- standard_macro: 128W / 194L
-- dt_rush: 100W / 64L
-- four_gate: 109W / 80L
+- standard_macro: 137W / 199L
+- dt_rush: 104W / 68L
+- four_gate: 114W / 84L
 
 **By strategy (recent 10 games):**
-- standard_macro: 4W / 2L
-- four_gate: 3W / 1L
+- four_gate: 2W / 2L
+- standard_macro: 4W / 1L
+- dt_rush: 1W / 0L
 
 **Analysis:**
-The bot is performing well recently at 70% win rate (up from 46.5% all-time), showing the recent improvements are working. The two losses are Game 1 (Protoss, 3 minutes — workers drop from 20 to 1 at t=180s suggesting a proxy or cannon rush wipe with no defense) and Game 3 (Zerg, 11 minutes — army stays at 1-4 units across 9 minutes of 3-base macro before workers suddenly drop at t=660s, classic case of massively over-droning with no army production). Game 6 is a four_gate loss where after the attack fails at t=480s the bot rebuilds workers to 40 on 1 base with army falling to 0 and stays in a permanent stall for 700+ seconds before dying — the four_gate_mid_expand and safety_expand logic should have triggered but the cheese_active check blocks expansion since four_gate is still technically active until t=480. Game 3 shows the standard_macro army starvation problem persists vs Zerg with 3 bases and 63 workers but only 4-8 army units, meaning the standard_macro_defense_emergency zealot training is not helping enough when workers>=60.
+The bot is performing well recently at 70% win rate (up from 47% all-time), showing clear improvement from previous fixes. The 3 losses are: Game 1 (four_gate vs Zerg, Torches) where the army plateaus at 28-32 on 1 base for 600+ seconds then collapses catastrophically with workers dying from 42 to 0 between t=1140-1260 while army shrinks from 19 to 1, suggesting the bot camps on 1 base with a large army and gets overwhelmed by late-game Zerg; Game 2 (standard_macro vs Protoss, Pylon) where 40 workers and 60 army sit on 1 base from t=540-960 never expanding, then army drops from 30 to 0 at t=1020 and workers die at t=1080, a textbook permanent-stall-on-1-base loss; Game 10 (four_gate vs Terran, Torches) where the four_gate attack fires at t=300-420 reducing army from 11 to 5, then the bot never recovers — army bleeds to 1 by t=720 while workers grow to 38 on 1 base with no expansion and then everyone dies. The core remaining bugs are: (1) Game 2's 60-army stall on 1 base — the bot has 40 workers and 60 army for 400+ seconds and never expands because all expand conditions require army<6 or small worker counts, but with large army the timed_out_attack fires but sends units to die rather than expanding; (2) Game 1 and Game 10's post-cheese/post-battle collapse where the army gets ground down over hundreds of seconds on 1 base with no expansion happening.
 
 ## Applied Improvements
-- Fix Game 6 four_gate permanent stall: after four_gate army is wiped and cheese window closes (t>=480), the bot rebuilds workers but expansion is blocked by the cheese_active check — add a post_cheese_expand that fires in _expand even when cheese_type==_CHEESE_4GATE and the bot has been sitting on 1 base past t=480 with workers>=22, by moving the cheese_active early return to allow post-cheese expansion
-- Fix Game 3 Zerg loss where 3-base macro produces 63 workers but only 4-8 army units: the standard_macro_defense_emergency threshold of army<8 only applies when workers>=20, but with 63 workers the bot should be producing far more army — raise the army threshold to 16 when workers>=40 to force aggressive gateway production at large worker counts vs Zerg
-- Fix Game 1 early proxy/cannon rush wipe: at t=180s workers drop from 20 to 1 with no army and no recovery — the enemy_near_base_early defense check uses closer_than(15) but a proxy cannon or zealot rush can kill workers before reaching that threshold; also the max_worker_defenders cap of 4 is too low when nexus is not yet detected as under_attack — lower enemy detection radius to 20 for non-cheese early defense and increase worker defenders to 6 when workers are dying rapidly
+- Fix Game 2's permanent 1-base stall with large army (40 workers, 60 army, never expands): add an expand trigger when army>=20 and workers>=36 and on 1 base, since none of the existing expand conditions catch this state (oversaturated_expand requires army<6 via safety_expand, but oversaturated_expand itself only checks workers>=30 — however the cheese_active guard at the top of _expand blocks it if four_gate is still nominally active; the real issue is that with bases=1, workers=40, army=60, timed_out_attack fires repeatedly attacking but nobody expands)
+- Wire large_army_expand into the actual expand trigger condition so it fires
+- Fix Game 10 four_gate post-attack collapse: after four_gate attack reduces army from 11 to 5-7 at t=360-480, the bot never rebuilds army (army bleeds to 1 by t=720) because post_cheese_army_emergency only triggers when cheese_active is False, but four_gate cheese is still nominally active until t=480; extend the emergency army rebuild to also fire during four_gate when army<8 and time>300 to catch the partial-attack-failure case

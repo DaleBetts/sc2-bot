@@ -449,6 +449,16 @@ class CompetitiveBot(BotAI):
             and current_army < 12
             and self.workers.amount >= 20
         )
+        # Fix Game 10 four_gate partial failure: attack reduces army from 11 to 5-7 but cheese
+        # is still nominally active (t<480), so post_cheese_army_emergency never fires and
+        # army bleeds to 1 over 400s; force rebuild when four_gate army drops below 6 after t=300
+        four_gate_army_bleed = (
+            self._cheese_type == _CHEESE_4GATE
+            and self.time > 300
+            and current_army < 8
+            and self.workers.amount >= 18
+        )
+        post_cheese_army_emergency = post_cheese_army_emergency or four_gate_army_bleed
         # Standard macro defense emergency: workers building up but army tiny — must train units
         # This fixes Games 4/8/10 where bot masses workers to 40 with army<=8 and gets overrun
         standard_macro_defense_emergency = (
@@ -721,6 +731,16 @@ class CompetitiveBot(BotAI):
             and self.townhalls.amount < 3
             and self.can_afford(UnitTypeId.NEXUS)
         )
+        # Fix Game 2 pattern: 40 workers + 60 army on 1 base for 400s, never expands
+        # When army is large (>=20) and workers are full (>=30) on 1 base, force expand
+        # regardless of cheese state — a large army is the best defense for a new base
+        large_army_expand = (
+            self.townhalls.amount == 1
+            and self.workers.amount >= 30
+            and self.units.filter(lambda u: u.type_id in army_types).amount >= 20
+            and not self.already_pending(UnitTypeId.NEXUS)
+            and self.can_afford(UnitTypeId.NEXUS)
+        )
         # Emergency expand: if we have 30+ workers on 1 base we are oversaturated
         # This catches the Game 2 pattern where cheese ends but bot never expands
         oversaturated_expand = (
@@ -755,6 +775,7 @@ class CompetitiveBot(BotAI):
             (self.townhalls.amount < target and has_defense and not self.already_pending(UnitTypeId.NEXUS) and self.can_afford(UnitTypeId.NEXUS))
             or force_expand
             or large_economy_expand
+            or large_army_expand
             or four_gate_mid_expand
             or oversaturated_expand
             or post_battle_expand

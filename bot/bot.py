@@ -101,7 +101,7 @@ class CompetitiveBot(BotAI):
         # Auto-surrender: if we have no workers AND no army AND no hope, gg out
         army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
         _cur_army = self.units.filter(lambda u: u.type_id in army_types).amount
-        if self.workers.amount == 0 and _cur_army == 0 and self.time > 120:
+        if self.workers.amount == 0 and (_cur_army == 0 or (self.townhalls.amount == 0 and _cur_army <= 1)) and self.time > 120:
             if self._dead_since == 0.0:
                 self._dead_since = self.time
             elif self.time - self._dead_since > 60:
@@ -139,9 +139,10 @@ class CompetitiveBot(BotAI):
         # Pull workers to fight if workers are dying OR if enemy units are close with no army
         army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
         current_army_count = self.units.filter(lambda u: u.type_id in army_types).amount
+        _early_detect_radius = 25 if (self.time < 180 and self.workers.amount < 16) else 20
         enemy_near_base_early = self.enemy_units.filter(
             lambda u: u.type_id not in _WORKER_TYPES and u.type_id != UnitTypeId.OVERLORD
-        ).closer_than(15, self.start_location)
+        ).closer_than(_early_detect_radius, self.start_location)
         # During DT rush, army is intentionally 0 for a long time — still need to defend workers
         dt_rush_defense = (
             self._cheese_active
@@ -838,6 +839,9 @@ class CompetitiveBot(BotAI):
             army_threshold = 6
         elif not self._cheese_active and self.time > 600:
             army_threshold = 3
+        elif not self._cheese_active and self.workers.amount >= 28 and self.townhalls.amount == 1 and self.time > 360:
+            # Game 10 pattern: tiny army oscillation on 1 base kills the bot — hold until 10 units
+            army_threshold = 10
         else:
             army_threshold = 4
         if not self.townhalls:

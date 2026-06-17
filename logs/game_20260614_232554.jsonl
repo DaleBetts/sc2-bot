@@ -1,0 +1,7 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "65242eb6-0542-4f5c-b38d-9a76703da137", "opponent_race": "Protoss", "map_name": "Persephone AIE", "strategy": "four_gate"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 8.8, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 65, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 20.8, "minute": 2, "workers": 19, "bases": 1, "supply_used": 24, "supply_cap": 47, "supply_left": 23, "minerals": 100, "vespene": 64, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 33.7, "minute": 3, "workers": 8, "bases": 1, "supply_used": 12, "supply_cap": 47, "supply_left": 35, "minerals": 85, "vespene": 152, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 48.8, "minute": 4, "workers": 0, "bases": 0, "supply_used": 0, "supply_cap": 8, "supply_left": 8, "minerals": 40, "vespene": 156, "army_count": 0, "cheese_active": true}
+{"event": "game_end", "game_time": 259.7, "wall_s": 53.5, "result": "Defeat", "final_workers": 0, "final_bases": 0, "final_supply": 0, "strategy": "four_gate", "opponent_race": "Protoss"}

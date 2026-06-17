@@ -1,0 +1,9 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "10a32e91-43de-4a28-a936-bed65c0afc5f", "opponent_race": "Terran", "map_name": "Ley Lines AIE", "strategy": "four_gate"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 26.8, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 70, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 49.6, "minute": 2, "workers": 22, "bases": 1, "supply_used": 23, "supply_cap": 47, "supply_left": 24, "minerals": 185, "vespene": 56, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 74.9, "minute": 3, "workers": 22, "bases": 1, "supply_used": 26, "supply_cap": 47, "supply_left": 21, "minerals": 440, "vespene": 260, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 101.6, "minute": 4, "workers": 22, "bases": 1, "supply_used": 38, "supply_cap": 87, "supply_left": 49, "minerals": 70, "vespene": 364, "army_count": 4, "cheese_active": true}
+{"event": "periodic", "game_time": 300.0, "wall_s": 129.4, "minute": 5, "workers": 22, "bases": 1, "supply_used": 54, "supply_cap": 95, "supply_left": 41, "minerals": 15, "vespene": 484, "army_count": 15, "cheese_active": true}
+{"event": "periodic", "game_time": 360.0, "wall_s": 161.8, "minute": 6, "workers": 22, "bases": 1, "supply_used": 72, "supply_cap": 95, "supply_left": 23, "minerals": 30, "vespene": 812, "army_count": 24, "cheese_active": true}
+{"event": "game_end", "game_time": 412.4, "wall_s": 182.1, "result": "Victory", "final_workers": 22, "final_bases": 1, "final_supply": 82, "strategy": "four_gate", "opponent_race": "Terran"}

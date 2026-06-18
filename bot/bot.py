@@ -101,10 +101,17 @@ class CompetitiveBot(BotAI):
         # Auto-surrender: if we have no workers AND no army AND no hope, gg out
         army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
         _cur_army = self.units.filter(lambda u: u.type_id in army_types).amount
-        if self.workers.amount == 0 and (_cur_army == 0 or (self.townhalls.amount == 0 and _cur_army <= 1)) and self.time > 120:
+        # Also surrender if: no bases + no army + nearly no minerals for 60s (Game 9 pattern: 5 workers, 0 bases, 0 army, 5 minerals for 360s)
+        hopeless_no_base = (
+            self.townhalls.amount == 0
+            and _cur_army == 0
+            and self.minerals <= 50
+            and self.time > 180
+        )
+        if (self.workers.amount == 0 and (_cur_army == 0 or (self.townhalls.amount == 0 and _cur_army <= 1)) and self.time > 120) or hopeless_no_base:
             if self._dead_since == 0.0:
                 self._dead_since = self.time
-            elif self.time - self._dead_since > 60:
+            elif self.time - self._dead_since > 45:
                 await self.client.leave()
                 return
         else:
@@ -152,21 +159,30 @@ class CompetitiveBot(BotAI):
             ).closer_than(10, self.start_location).amount >= 1
             and self.workers.amount > 0
         )
+        # Detect mass early aggression: enemy units close with no army and workers dying fast
+        mass_early_aggression = (
+            enemy_near_base_early.amount >= 3
+            and current_army_count == 0
+            and self.workers.amount > 0
+            and self.time < 360
+        )
         should_defend_workers = (
             (worker_drop >= 2 and self.workers.amount > 0)
             or (enemy_near_base_early.amount >= 2 and current_army_count < 3 and self.workers.amount > 0)
             or dt_rush_defense
+            or mass_early_aggression
         )
         if should_defend_workers:
             all_enemies = self.enemy_units
             if all_enemies:
                 # Only pull up to 4 workers to defend — pulling all workers just gets them killed
                 # Exception: if nexus is directly under attack, pull more workers
+                # Exception: mass early aggression with no army — pull all workers to survive
                 nexus_under_attack = any(
                     self.enemy_units.closer_than(5, th.position)
                     for th in self.townhalls
                 )
-                max_worker_defenders = self.workers.amount if nexus_under_attack else min(6, self.workers.amount)
+                max_worker_defenders = self.workers.amount if (nexus_under_attack or mass_early_aggression) else min(6, self.workers.amount)
                 defending_workers = self.workers.closest_n_units(all_enemies.center, max_worker_defenders)
                 for worker in defending_workers:
                     worker.attack(all_enemies.closest_to(worker))
@@ -873,7 +889,14 @@ class CompetitiveBot(BotAI):
             return
         # Fix Game 7 pattern: maxed/near-maxed army camping forever with normal mineral levels
         # supply_cap>=150 means late game, army>=40 means massive force — just attack
-        if self.supply_cap >= 150 and army.amount >= 40 and self.time - self._last_attack_time > 60:
+        # Also catch large armies (>=30) stalling past 10 min on 1 base — reduce cooldown to 30s
+        large_army_stall = (
+            army.amount >= 30
+            and self.time > 600
+            and self.townhalls.amount <= 1
+            and self.time - self._last_attack_time > 30
+        )
+        if (self.supply_cap >= 150 and army.amount >= 40 and self.time - self._last_attack_time > 60) or large_army_stall:
             self._last_attack_time = self.time
             for unit in army:
                 unit.attack(target)

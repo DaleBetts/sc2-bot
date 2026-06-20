@@ -108,6 +108,22 @@ class CompetitiveBot(BotAI):
             and self.minerals <= 50
             and self.time > 180
         )
+        # Fix Game 3/6 zombie: 40 workers + 0 army + 1 base + tiny minerals for 600s
+        # The bot can't rebuild army (no production, no minerals) but won't surrender
+        _stuck_no_army = getattr(self, '_stuck_no_army_since', 0.0)
+        if (
+            self.townhalls.amount <= 1
+            and _cur_army == 0
+            and self.minerals <= 25
+            and self.workers.amount > 0
+            and self.time > 480
+        ):
+            if _stuck_no_army == 0.0:
+                self._stuck_no_army_since = self.time
+            elif self.time - _stuck_no_army > 120:
+                hopeless_no_base = True
+        else:
+            self._stuck_no_army_since = 0.0
         if (self.workers.amount == 0 and (_cur_army == 0 or (self.townhalls.amount == 0 and _cur_army <= 1)) and self.time > 120) or hopeless_no_base:
             if self._dead_since == 0.0:
                 self._dead_since = self.time
@@ -146,7 +162,9 @@ class CompetitiveBot(BotAI):
         # Pull workers to fight if workers are dying OR if enemy units are close with no army
         army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
         current_army_count = self.units.filter(lambda u: u.type_id in army_types).amount
-        _early_detect_radius = 25 if (self.time < 180 and self.workers.amount < 16) else 20
+        # Increase detection radius when army is gone late-game (Game 10: Zerg overruns base at t=600 with no response)
+        _late_no_army_defense = current_army_count == 0 and self.time > 480 and self.workers.amount > 0
+        _early_detect_radius = 25 if (self.time < 180 and self.workers.amount < 16) else (30 if _late_no_army_defense else 20)
         enemy_near_base_early = self.enemy_units.filter(
             lambda u: u.type_id not in _WORKER_TYPES and u.type_id != UnitTypeId.OVERLORD
         ).closer_than(_early_detect_radius, self.start_location)
@@ -182,7 +200,14 @@ class CompetitiveBot(BotAI):
                     self.enemy_units.closer_than(5, th.position)
                     for th in self.townhalls
                 )
-                max_worker_defenders = self.workers.amount if (nexus_under_attack or mass_early_aggression) else min(6, self.workers.amount)
+                # Also pull all workers when army is gone late-game and base is under siege (Game 6/10 pattern)
+                late_game_base_siege = (
+                    current_army_count == 0
+                    and self.time > 480
+                    and self.workers.amount >= 20
+                    and enemy_near_base_early.amount >= 3
+                )
+                max_worker_defenders = self.workers.amount if (nexus_under_attack or mass_early_aggression or late_game_base_siege) else min(6, self.workers.amount)
                 defending_workers = self.workers.closest_n_units(all_enemies.center, max_worker_defenders)
                 for worker in defending_workers:
                     worker.attack(all_enemies.closest_to(worker))

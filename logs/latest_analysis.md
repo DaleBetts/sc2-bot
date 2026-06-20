@@ -1,28 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 48.7% (417W / 386L over 856 games)
+**All-time win rate:** 49.2% (444W / 401L over 903 games)
 
-**Recent 10-game win rate:** ↓ declining (recent 40.0% vs all-time 48.7%)
+**Recent 10-game win rate:** ↑ improving (recent 60.0% vs all-time 49.2%)
 
 **By race (all-time):**
-- Zerg: 105W / 124L  avg game 681s
-- Protoss: 198W / 143L  avg game 649s
-- Random: 48W / 41L  avg game 614s
-- Terran: 66W / 78L  avg game 636s
+- Zerg: 108W / 130L  avg game 699s
+- Protoss: 215W / 149L  avg game 647s
+- Random: 49W / 42L  avg game 621s
+- Terran: 72W / 80L  avg game 638s
 
 **By strategy (all-time):**
-- standard_macro: 163W / 222L
-- dt_rush: 126W / 77L
-- four_gate: 128W / 87L
+- standard_macro: 174W / 232L
+- dt_rush: 138W / 78L
+- four_gate: 132W / 91L
 
 **By strategy (recent 10 games):**
-- standard_macro: 3W / 6L
-- four_gate: 1W / 0L
+- standard_macro: 4W / 2L
+- four_gate: 1W / 1L
+- dt_rush: 1W / 0L
 
 **Analysis:**
-The recent 40% win rate is notably below the 48.7% all-time average, indicating regression. The most critical failures are: (1) Games 4 and 6 show catastrophic early worker wipes at t=300-360 (workers drop from 30+ to 0-3) with no army response — the early defense detection is failing against early aggression vs Random and Zerg; (2) Game 7 is the most damning: a 59-unit army sits idle on 1 base from t=840 to t=1200 never attacking, eventually collapsing to 0 supply — the timed_out_attack logic fires but evidently the bot is not successfully attacking or the supply_cap>=150 threshold requires 150 but the bot caps at 183 supply with army=59 which should be enough, yet the game drags 1200s suggesting the attack is somehow stalling/retreating repeatedly; (3) Game 9 shows a proxy rush wipe at t=240 (workers drop from 25 to 4, bases drop to 0) with no recovery and the auto-surrender takes 660s to trigger — the zombie detection needs to catch 0-base states faster. Game 7's permanent stall with 59 army on 1 base for 300+ seconds is the most severe single bug: supply_cap=183 and army=59 should trigger the supply_cap>=150 && army>=40 attack every 60s, but the army never moves, suggesting the attack target resolution is broken when enemy_structures is empty and enemy_start_locations attack keeps getting interrupted and units retreat back.
+Recent win rate is 60% vs 49.2% all-time, showing clear improvement. However, the 3 losses reveal distinct patterns: Game 3 (Tie vs Terran) and Game 6 (Loss vs Zerg) both show the bot stalling on 1 base with 40 workers and a small army (army drops from 17 to 0-1 over ~400s) and then entering a zombie state where workers=42, army=0, minerals=20 persist for 600+ seconds without surrendering — Game 6 has bases=1 with army=0 from t=900 to t=1560 without triggering the hopeless_no_base surrender (which requires bases==0). Game 10 (Loss vs Zerg) shows the army oscillating at 5-8 units and never reaching the attack threshold, while workers drop from 32 to 0 at t=600-660 suggesting a catastrophic enemy attack that the bot failed to defend despite having 40 workers and 5 army at t=540.
 
 ## Applied Improvements
-- Fix Game 7 permanent 59-army stall: the timed_out_attack fires every 90s but army immediately retreats to rally point because near_base check intercepts next step — force a persistent attack flag when army>=30 and time>600 so units don't keep reverting to rally movement
-- Fix Games 4 and 6 catastrophic early worker wipes: the early defense detection at t<300 with workers<30 needs to pull ALL nearby workers immediately when enemy units are within 20 tiles and current army is 0, not just 6 — a full worker pull is better than total annihilation
-- Fix Game 9 slow zombie surrender: bot has 0 bases and 5 workers with 0 army from t=300 to t=660 (360s zombie) — accelerate surrender when bases==0 and army==0 and workers are stuck with no minerals to rebuild (minerals<=5 for extended period)
+- Fix Game 3 and Game 6 zombie states: bot has 40+ workers, 0 army, 1 base, and tiny minerals for 600+ seconds without surrendering because hopeless_no_base only checks bases==0; add a surrender trigger for bases==1 with army==0 and workers stuck and minerals floored for extended time
+- Fix Game 10 worker wipe at t=600: army drops from 8 to 0 and workers drop from 40 to 32 to 0 in 120s with no response; the current worker defense only pulls workers when enemy is within 20 tiles but by t=600 the Zerg army has overwhelmed the base — increase enemy detection radius to 30 tiles when army==0 and time>480 to catch large Zerg attacks earlier
+- Fix Game 6 permanent 1-base stall: army oscillates between 0-17 on 1 base from t=300 to t=900 then collapses — when army reaches 0 with workers>=30 on 1 base after t=600 in standard_macro, force a full worker pull to defend rather than the capped 6-worker pull, because the base is already being overrun

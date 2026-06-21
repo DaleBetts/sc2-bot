@@ -114,7 +114,7 @@ class CompetitiveBot(BotAI):
         if (
             self.townhalls.amount <= 1
             and _cur_army == 0
-            and self.minerals <= 25
+            and self.minerals <= 100
             and self.workers.amount > 0
             and self.time > 480
         ):
@@ -163,7 +163,14 @@ class CompetitiveBot(BotAI):
         army_types = _ZERG_ARMY_TYPES if self._vs_zerg else _ARMY_TYPES
         current_army_count = self.units.filter(lambda u: u.type_id in army_types).amount
         # Increase detection radius when army is gone late-game (Game 10: Zerg overruns base at t=600 with no response)
-        _late_no_army_defense = current_army_count == 0 and self.time > 480 and self.workers.amount > 0
+        # Also extend during four_gate when army==0 and workers are at risk (Game 3: worker wipe at t=660)
+        _four_gate_no_army = (
+            self._cheese_type == _CHEESE_4GATE
+            and current_army_count == 0
+            and self.workers.amount >= 20
+            and self.time > 300
+        )
+        _late_no_army_defense = (current_army_count == 0 and self.time > 480 and self.workers.amount > 0) or _four_gate_no_army
         _early_detect_radius = 25 if (self.time < 180 and self.workers.amount < 16) else (30 if _late_no_army_defense else 20)
         enemy_near_base_early = self.enemy_units.filter(
             lambda u: u.type_id not in _WORKER_TYPES and u.type_id != UnitTypeId.OVERLORD
@@ -921,6 +928,19 @@ class CompetitiveBot(BotAI):
             and self.townhalls.amount <= 1
             and self.time - self._last_attack_time > 30
         )
+        # Fix Game 2 supply-cap deadlock: supply_used==supply_cap with large army means bot is
+        # building nothing and attacking nothing — force attack immediately to break the stall
+        _supply_cap_stall = getattr(self, '_supply_cap_stall_since', 0.0)
+        if self.supply_left == 0 and army.amount >= 20 and self.time > 480:
+            if _supply_cap_stall == 0.0:
+                self._supply_cap_stall_since = self.time
+            elif self.time - _supply_cap_stall > 60:
+                self._last_attack_time = 0.0
+                for unit in army:
+                    unit.attack(target)
+                return
+        else:
+            self._supply_cap_stall_since = 0.0
         if (self.supply_cap >= 150 and army.amount >= 40 and self.time - self._last_attack_time > 60) or large_army_stall:
             self._last_attack_time = self.time
             for unit in army:

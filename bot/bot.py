@@ -171,6 +171,18 @@ class CompetitiveBot(BotAI):
             and self.time > 300
         )
         _late_no_army_defense = (current_army_count == 0 and self.time > 480 and self.workers.amount > 0) or _four_gate_no_army
+        # Track peak army to detect rapid collapse (Games 5/8: army goes 39->0 then workers wiped in 60s)
+        _peak_army_log = getattr(self, '_peak_army_log', 0)
+        if current_army_count > _peak_army_log:
+            self._peak_army_log = current_army_count
+            _peak_army_log = current_army_count
+        _rapid_army_collapse = (
+            _peak_army_log >= 15
+            and current_army_count == 0
+            and self.workers.amount >= 20
+            and self.time > 420
+        )
+        _late_no_army_defense = _late_no_army_defense or _rapid_army_collapse
         _early_detect_radius = 25 if (self.time < 180 and self.workers.amount < 16) else (30 if _late_no_army_defense else 20)
         enemy_near_base_early = self.enemy_units.filter(
             lambda u: u.type_id not in _WORKER_TYPES and u.type_id != UnitTypeId.OVERLORD
@@ -517,7 +529,14 @@ class CompetitiveBot(BotAI):
                 or (current_army < 16 and self.workers.amount >= 40 and self.time > 360)
             )
         )
-        if (self.minerals > 200 and current_army < 10 and not self._cheese_active) or post_cheese_army_emergency or standard_macro_defense_emergency:
+        # Fix Game 6: massive mineral float (1000+) with tiny army during/after dt_rush — spend minerals on units
+        mineral_float_emergency = (
+            self.minerals > 500
+            and current_army < 15
+            and self.workers.amount >= 20
+            and self.time > 300
+        )
+        if (self.minerals > 200 and current_army < 10 and not self._cheese_active) or post_cheese_army_emergency or standard_macro_defense_emergency or mineral_float_emergency:
             for gw in self.structures(UnitTypeId.GATEWAY).ready.idle:
                 if self.can_afford(UnitTypeId.ZEALOT) and self.supply_left > 0:
                     gw.train(UnitTypeId.ZEALOT)
@@ -884,7 +903,7 @@ class CompetitiveBot(BotAI):
 
         # 4-gate attacks with 6 units; standard attacks with 4 units to apply early pressure; force attack after 10 min
         if self._cheese_active and self._cheese_type == _CHEESE_4GATE:
-            army_threshold = 6
+            army_threshold = 4
         elif not self._cheese_active and self.time > 600:
             army_threshold = 3
         elif not self._cheese_active and self.workers.amount >= 28 and self.townhalls.amount == 1 and self.time > 360:

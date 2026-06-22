@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 49.5% (457W / 409L over 924 games)
+**All-time win rate:** 49.4% (467W / 419L over 945 games)
 
-**Recent 10-game win rate:** ↑ improving (recent 70.0% vs all-time 49.5%)
+**Recent 10-game win rate:** ↓ declining (recent 40.0% vs all-time 49.4%)
 
 **By race (all-time):**
-- Zerg: 110W / 134L  avg game 706s
-- Protoss: 223W / 152L  avg game 646s
-- Random: 50W / 42L  avg game 618s
-- Terran: 74W / 81L  avg game 636s
+- Zerg: 111W / 139L  avg game 709s
+- Protoss: 228W / 156L  avg game 647s
+- Random: 52W / 42L  avg game 615s
+- Terran: 76W / 82L  avg game 634s
 
 **By strategy (all-time):**
-- standard_macro: 178W / 237L
-- dt_rush: 141W / 79L
-- four_gate: 138W / 93L
+- standard_macro: 186W / 243L
+- dt_rush: 142W / 81L
+- four_gate: 139W / 95L
 
 **By strategy (recent 10 games):**
-- dt_rush: 2W / 0L
-- standard_macro: 1W / 2L
-- four_gate: 4W / 1L
+- four_gate: 1W / 2L
+- standard_macro: 2W / 3L
+- dt_rush: 1W / 1L
 
 **Analysis:**
-The bot is performing well recently at 70% win rate vs 49.5% all-time, showing clear improvement. The two recent losses are Game 2 (standard_macro vs Protoss) and Game 9 (standard_macro vs Protoss), both showing the same pattern: army grows to 33-59 on 1 base, stalls indefinitely (supply locked at same value for 300+ seconds in Game 2, army collapses from 33 to 0 at t=600 in Game 9), and the bot never expands despite having 40 workers and full mineral income. Game 2 shows a permanent supply-cap stall where army sits at 59 supply for 300s with no attack, no expand, and no resolution until t=1140 when the bot collapses. Game 9 shows army wiped at t=600 with 40 workers, then a slow zombie death as workers bleed away with no surrender. Game 3 (four_gate vs Zerg) shows a sudden worker wipe at t=660 with workers dropping from 30 to 0 in 60s suggesting a missed defense trigger. The standard_macro strategy has a deeply broken 1-base endgame where the bot accumulates massive supply but never pushes or expands decisively.
+The bot is declining — recent 40% WR vs 49.4% all-time. Three distinct failure patterns emerge: (1) Games 1, 5, 8 show the bot accumulating 39-40 workers and a large army (21-39 units) on 1 base, the army gets wiped in a single engagement around t=480-600, then the bot enters a zombie state rebuilding workers to 40 with 0 army for 120-240s before workers get wiped — the late_no_army_defense and stuck_no_army_since triggers aren't catching this fast enough. (2) Game 6 DT rush shows extreme mineral float (1375 at t=480, 1045 at t=720-780) with tiny army (3-10 units) on 3 bases — minerals are never spent on army units during the post-cheese phase. (3) Games 1 and 10 show four_gate staying on 1 base for 900-960s with army oscillating 18-21 and never attacking decisively — the attack threshold and expansion logic aren't forcing resolution. The _stuck_no_army_since threshold of 120s is too slow to catch rapid worker wipes in Games 5 and 8 where workers go from 40 to 0 in 60-120s after army collapse.
 
 ## Applied Improvements
-- Fix Game 2 permanent supply-cap stall: when supply_used equals supply_cap for 2+ consecutive snapshots with army>=40 and 1 base, force an immediate attack regardless of attack timers — the bot is deadlocked building nothing and attacking nothing
-- Fix Game 9 slow zombie: army collapses from 33 to 1 between t=540 and t=660 on 1 base with 40 workers — current stuck_no_army_since requires minerals<=25 but Game 9 shows minerals=65-95 during the collapse; raise the minerals threshold to 100 to catch this pattern earlier and accelerate surrender
-- Fix Game 3 sudden worker wipe at t=660: workers drop from 30 to 0 in 60s during four_gate with army=0 on 1 base — the late_no_army_defense detection radius of 30 tiles only applies after t=480 but the four_gate cheese is still nominally active; extend the large detection radius to also apply when army==0 and workers>=20 during four_gate regardless of time
+- Fix Games 5 and 8 rapid post-army-wipe worker annihilation: when army drops from 20+ to 0 on 1 base after t=480, immediately trigger full worker pull defense rather than waiting for the _stuck_no_army_since 120s timer — army collapses at t=480-600 and workers are wiped within 60-120s before the timer fires
+- Fix Game 6 extreme mineral float during dt_rush post-cheese: minerals sitting at 1000+ with tiny army means the bot never spends minerals on gateway units after cheese window — force zealot/stalker production from all gateways every step when minerals exceed 500 and army is under 15 regardless of cheese state
+- Fix Games 1 and 10 four_gate permanent 1-base stall: army oscillates 18-21 for 600+ seconds on 1 base without attacking or expanding — lower the four_gate attack threshold from 6 to 4 and force immediate expand when four_gate army >= 12 and time > 420 to break the stall

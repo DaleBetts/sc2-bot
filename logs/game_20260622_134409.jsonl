@@ -1,0 +1,10 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "803b2a8b-dd97-4f37-9d81-fe89ccd0928e", "opponent_race": "Zerg", "map_name": "Ultralove AIE", "strategy": "dt_rush"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 12.1, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 90, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 21.5, "minute": 2, "workers": 20, "bases": 1, "supply_used": 24, "supply_cap": 47, "supply_left": 23, "minerals": 140, "vespene": 72, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 28.6, "minute": 3, "workers": 22, "bases": 1, "supply_used": 28, "supply_cap": 47, "supply_left": 19, "minerals": 320, "vespene": 184, "army_count": 1, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 37.6, "minute": 4, "workers": 14, "bases": 1, "supply_used": 22, "supply_cap": 87, "supply_left": 65, "minerals": 35, "vespene": 186, "army_count": 1, "cheese_active": true}
+{"event": "periodic", "game_time": 300.0, "wall_s": 45.7, "minute": 5, "workers": 0, "bases": 1, "supply_used": 2, "supply_cap": 87, "supply_left": 85, "minerals": 20, "vespene": 186, "army_count": 1, "cheese_active": true}
+{"event": "periodic", "game_time": 360.0, "wall_s": 53.9, "minute": 6, "workers": 0, "bases": 1, "supply_used": 2, "supply_cap": 87, "supply_left": 85, "minerals": 20, "vespene": 186, "army_count": 1, "cheese_active": false}
+{"event": "periodic", "game_time": 420.0, "wall_s": 63.8, "minute": 7, "workers": 0, "bases": 1, "supply_used": 0, "supply_cap": 87, "supply_left": 87, "minerals": 20, "vespene": 186, "army_count": 0, "cheese_active": false}
+{"event": "game_end", "game_time": 431.8, "wall_s": 66.6, "result": "Defeat", "final_workers": 0, "final_bases": 1, "final_supply": 0, "strategy": "dt_rush", "opponent_race": "Zerg"}

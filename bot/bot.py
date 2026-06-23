@@ -111,19 +111,22 @@ class CompetitiveBot(BotAI):
         # Fix Game 3/6 zombie: 40 workers + 0 army + 1 base + tiny minerals for 600s
         # The bot can't rebuild army (no production, no minerals) but won't surrender
         _stuck_no_army = getattr(self, '_stuck_no_army_since', 0.0)
+        # Also surrender when army is tiny (<=2) rather than strictly 0, to catch Game 2 pattern
+        _army_effectively_zero = _cur_army <= 2
         if (
             self.townhalls.amount <= 1
-            and _cur_army == 0
-            and self.minerals <= 100
+            and _army_effectively_zero
+            and self.minerals <= 150
             and self.workers.amount > 0
             and self.time > 480
         ):
             if _stuck_no_army == 0.0:
                 self._stuck_no_army_since = self.time
-            elif self.time - _stuck_no_army > 120:
+            elif self.time - _stuck_no_army > 90:
                 hopeless_no_base = True
         else:
-            self._stuck_no_army_since = 0.0
+            if not _army_effectively_zero or self.minerals > 150:
+                self._stuck_no_army_since = 0.0
         if (self.workers.amount == 0 and (_cur_army == 0 or (self.townhalls.amount == 0 and _cur_army <= 1)) and self.time > 120) or hopeless_no_base:
             if self._dead_since == 0.0:
                 self._dead_since = self.time
@@ -203,11 +206,18 @@ class CompetitiveBot(BotAI):
             and self.workers.amount > 0
             and self.time < 360
         )
+        # Catastrophic worker wipe: workers dropping fast with no army — pull everyone immediately
+        _catastrophic_wipe = (
+            worker_drop >= 4
+            and current_army_count == 0
+            and self.workers.amount > 0
+        )
         should_defend_workers = (
             (worker_drop >= 2 and self.workers.amount > 0)
             or (enemy_near_base_early.amount >= 2 and current_army_count < 3 and self.workers.amount > 0)
             or dt_rush_defense
             or mass_early_aggression
+            or _catastrophic_wipe
         )
         if should_defend_workers:
             all_enemies = self.enemy_units
@@ -942,11 +952,23 @@ class CompetitiveBot(BotAI):
         # supply_cap>=150 means late game, army>=40 means massive force — just attack
         # Also catch large armies (>=30) stalling past 10 min on 1 base — reduce cooldown to 30s
         large_army_stall = (
-            army.amount >= 30
+            army.amount >= 20
             and self.time > 600
             and self.townhalls.amount <= 1
             and self.time - self._last_attack_time > 30
         )
+        # Fix Game 10: army erodes slowly over 400s on 1 base — force permanent attack mode
+        # when army has been large for a while on 1 base to prevent attrition stall
+        _permanent_attack_mode = (
+            army.amount >= 20
+            and self.time > 720
+            and self.townhalls.amount <= 1
+            and not self.already_pending(UnitTypeId.NEXUS)
+        )
+        if _permanent_attack_mode:
+            for unit in army:
+                unit.attack(target if self.enemy_structures else self.enemy_start_locations[0])
+            return
         # Fix Game 2 supply-cap deadlock: supply_used==supply_cap with large army means bot is
         # building nothing and attacking nothing — force attack immediately to break the stall
         _supply_cap_stall = getattr(self, '_supply_cap_stall_since', 0.0)

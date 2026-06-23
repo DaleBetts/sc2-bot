@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 49.4% (467W / 419L over 945 games)
+**All-time win rate:** 49.7% (480W / 427L over 966 games)
 
-**Recent 10-game win rate:** ↓ declining (recent 40.0% vs all-time 49.4%)
+**Recent 10-game win rate:** ↑ improving (recent 60.0% vs all-time 49.7%)
 
 **By race (all-time):**
-- Zerg: 111W / 139L  avg game 709s
-- Protoss: 228W / 156L  avg game 647s
-- Random: 52W / 42L  avg game 615s
-- Terran: 76W / 82L  avg game 634s
+- Zerg: 113W / 143L  avg game 709s
+- Protoss: 235W / 160L  avg game 647s
+- Random: 54W / 42L  avg game 611s
+- Terran: 78W / 82L  avg game 632s
 
 **By strategy (all-time):**
-- standard_macro: 186W / 243L
-- dt_rush: 142W / 81L
-- four_gate: 139W / 95L
+- standard_macro: 189W / 247L
+- dt_rush: 147W / 83L
+- four_gate: 144W / 97L
 
 **By strategy (recent 10 games):**
-- four_gate: 1W / 2L
-- standard_macro: 2W / 3L
-- dt_rush: 1W / 1L
+- dt_rush: 2W / 1L
+- standard_macro: 1W / 2L
+- four_gate: 3W / 1L
 
 **Analysis:**
-The bot is declining — recent 40% WR vs 49.4% all-time. Three distinct failure patterns emerge: (1) Games 1, 5, 8 show the bot accumulating 39-40 workers and a large army (21-39 units) on 1 base, the army gets wiped in a single engagement around t=480-600, then the bot enters a zombie state rebuilding workers to 40 with 0 army for 120-240s before workers get wiped — the late_no_army_defense and stuck_no_army_since triggers aren't catching this fast enough. (2) Game 6 DT rush shows extreme mineral float (1375 at t=480, 1045 at t=720-780) with tiny army (3-10 units) on 3 bases — minerals are never spent on army units during the post-cheese phase. (3) Games 1 and 10 show four_gate staying on 1 base for 900-960s with army oscillating 18-21 and never attacking decisively — the attack threshold and expansion logic aren't forcing resolution. The _stuck_no_army_since threshold of 120s is too slow to catch rapid worker wipes in Games 5 and 8 where workers go from 40 to 0 in 60-120s after army collapse.
+The bot is performing well recently at 60% vs 49.7% all-time, but two losses share a critical pattern: Game 1 (dt_rush defeat) shows workers surviving to t=600 with army=3, then workers drop from 30 to 0 at t=660 — a rapid worker wipe with no response despite the existing defense logic. Game 2 (standard_macro defeat) shows the bot stalling on 1 base from t=600 to t=1260 with army oscillating 1-3 and workers at 40+ for 660 seconds before finally losing — the _stuck_no_army threshold of minerals<=100 is too tight since minerals sit at 55 the entire time. Game 4 (four_gate vs Zerg defeat) shows army collapsing from 21 to 0 between t=420 and t=660 with workers wiped at t=660, similar to Game 1. Game 10 (standard_macro vs Zerg defeat) shows the army slowly eroding from 49 down to 16 from t=840 to t=1260 without ever attacking — the bot is on 1 base the entire time with army>=30 but the large_army_stall condition requires townhalls<=1 AND time>600 which should be firing but _last_attack_time keeps getting reset preventing the timed attack from breaking the stall.
 
 ## Applied Improvements
-- Fix Games 5 and 8 rapid post-army-wipe worker annihilation: when army drops from 20+ to 0 on 1 base after t=480, immediately trigger full worker pull defense rather than waiting for the _stuck_no_army_since 120s timer — army collapses at t=480-600 and workers are wiped within 60-120s before the timer fires
-- Fix Game 6 extreme mineral float during dt_rush post-cheese: minerals sitting at 1000+ with tiny army means the bot never spends minerals on gateway units after cheese window — force zealot/stalker production from all gateways every step when minerals exceed 500 and army is under 15 regardless of cheese state
-- Fix Games 1 and 10 four_gate permanent 1-base stall: army oscillates 18-21 for 600+ seconds on 1 base without attacking or expanding — lower the four_gate attack threshold from 6 to 4 and force immediate expand when four_gate army >= 12 and time > 420 to break the stall
+- Fix Game 2 zombie stall: army sits at 1-3 with 40+ workers on 1 base for 660s — the stuck_no_army threshold of minerals<=100 excludes this pattern where minerals=55; raise threshold to 150 and also reduce the required idle time from 120s to 90s to surrender faster
+- Fix Games 1 and 4 late worker wipe: workers drop from 30 to 0 in 60s at t=660 when army=0 — the rapid_army_collapse detection requires peak_army>=15 but at t=600 army is only 3 for Game 1; add a direct trigger: when workers drop by 5+ in a single step with no army, immediately pull ALL remaining workers to fight rather than capping at 6
+- Fix Game 10 standard_macro vs Zerg slow army erosion: army decays from 49 to 16 over 420s on 1 base without attacking — the large_army_stall fires every 30s but _last_attack_time gets reset each time, then the army retreats and rebuilds slowly; force a continuous attack (not rally) when army>=20 on 1 base past t=720 with no second base so the bot commits rather than yo-yoing

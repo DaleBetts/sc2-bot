@@ -1,0 +1,10 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "65242eb6-0542-4f5c-b38d-9a76703da137", "opponent_race": "Protoss", "map_name": "Pylon AIE", "strategy": "four_gate"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 7.8, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 85, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 18.2, "minute": 2, "workers": 19, "bases": 1, "supply_used": 24, "supply_cap": 47, "supply_left": 23, "minerals": 145, "vespene": 76, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 29.2, "minute": 3, "workers": 5, "bases": 1, "supply_used": 10, "supply_cap": 47, "supply_left": 37, "minerals": 15, "vespene": 146, "army_count": 2, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 41.6, "minute": 4, "workers": 2, "bases": 1, "supply_used": 6, "supply_cap": 47, "supply_left": 41, "minerals": 45, "vespene": 206, "army_count": 2, "cheese_active": true}
+{"event": "periodic", "game_time": 300.0, "wall_s": 52.4, "minute": 5, "workers": 2, "bases": 0, "supply_used": 6, "supply_cap": 32, "supply_left": 26, "minerals": 20, "vespene": 230, "army_count": 2, "cheese_active": true}
+{"event": "periodic", "game_time": 360.0, "wall_s": 65.6, "minute": 6, "workers": 2, "bases": 0, "supply_used": 6, "supply_cap": 32, "supply_left": 26, "minerals": 20, "vespene": 230, "army_count": 2, "cheese_active": true}
+{"event": "periodic", "game_time": 420.0, "wall_s": 75.9, "minute": 7, "workers": 1, "bases": 0, "supply_used": 1, "supply_cap": 16, "supply_left": 15, "minerals": 20, "vespene": 230, "army_count": 0, "cheese_active": false}
+{"event": "game_end", "game_time": 460.0, "wall_s": 83.1, "result": "Defeat", "final_workers": 1, "final_bases": 0, "final_supply": 1, "strategy": "four_gate", "opponent_race": "Protoss"}

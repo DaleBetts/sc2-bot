@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 49.7% (480W / 427L over 966 games)
+**All-time win rate:** 50.0% (496W / 437L over 992 games)
 
-**Recent 10-game win rate:** ↑ improving (recent 60.0% vs all-time 49.7%)
+**Recent 10-game win rate:** ↑ improving (recent 60.0% vs all-time 50.0%)
 
 **By race (all-time):**
-- Zerg: 113W / 143L  avg game 709s
-- Protoss: 235W / 160L  avg game 647s
-- Random: 54W / 42L  avg game 611s
-- Terran: 78W / 82L  avg game 632s
+- Zerg: 116W / 143L  avg game 707s
+- Protoss: 243W / 166L  avg game 656s
+- Random: 56W / 44L  avg game 606s
+- Terran: 81W / 84L  avg game 634s
 
 **By strategy (all-time):**
-- standard_macro: 189W / 247L
-- dt_rush: 147W / 83L
-- four_gate: 144W / 97L
+- standard_macro: 195W / 253L
+- dt_rush: 150W / 83L
+- four_gate: 151W / 101L
 
 **By strategy (recent 10 games):**
-- dt_rush: 2W / 1L
-- standard_macro: 1W / 2L
-- four_gate: 3W / 1L
+- standard_macro: 2W / 3L
+- four_gate: 2W / 1L
+- dt_rush: 2W / 0L
 
 **Analysis:**
-The bot is performing well recently at 60% vs 49.7% all-time, but two losses share a critical pattern: Game 1 (dt_rush defeat) shows workers surviving to t=600 with army=3, then workers drop from 30 to 0 at t=660 — a rapid worker wipe with no response despite the existing defense logic. Game 2 (standard_macro defeat) shows the bot stalling on 1 base from t=600 to t=1260 with army oscillating 1-3 and workers at 40+ for 660 seconds before finally losing — the _stuck_no_army threshold of minerals<=100 is too tight since minerals sit at 55 the entire time. Game 4 (four_gate vs Zerg defeat) shows army collapsing from 21 to 0 between t=420 and t=660 with workers wiped at t=660, similar to Game 1. Game 10 (standard_macro vs Zerg defeat) shows the army slowly eroding from 49 down to 16 from t=840 to t=1260 without ever attacking — the bot is on 1 base the entire time with army>=30 but the large_army_stall condition requires townhalls<=1 AND time>600 which should be firing but _last_attack_time keeps getting reset preventing the timed attack from breaking the stall.
+The bot is improving significantly (60% recent vs 50% all-time), with dt_rush and four_gate performing well. The three losses are: Game 3 (standard_macro vs Protoss) where army collapses from 12 to 3-4 at t=480-540 and then stalls at army=4-5 on 1 base for 540+ seconds before workers are wiped at t=1020; Game 6 (standard_macro vs Protoss) where workers drop from 20 to 4 by t=180 suggesting an early cannon rush or proxy — bot loses all workers by t=240; Game 7 (standard_macro vs Protoss) where army builds to 59 on 1 base and sits completely idle from t=900 to t=1080 before workers are suddenly wiped at t=1140 — the permanent_attack_mode requires townhalls<=1 but army=59 with supply_cap=183 should be attacking. Game 9 (four_gate vs Terran) is a defeat where the army oscillates at 4-8 from t=360 to t=960 with workers building back to 40 — the bot transitions away from four_gate but never commits a real attack. The critical fix needed is Game 7: army=59 stalls from t=900-1080 because _permanent_attack_mode checks townhalls<=1 but the supply_cap>=150 check requires army>=40 AND a 60s cooldown — the combination misses sustained stalls; also Game 3 needs the stuck_no_army surrender to fire faster since army hovers at 3-5 (above the <=2 threshold) for 480s.
 
 ## Applied Improvements
-- Fix Game 2 zombie stall: army sits at 1-3 with 40+ workers on 1 base for 660s — the stuck_no_army threshold of minerals<=100 excludes this pattern where minerals=55; raise threshold to 150 and also reduce the required idle time from 120s to 90s to surrender faster
-- Fix Games 1 and 4 late worker wipe: workers drop from 30 to 0 in 60s at t=660 when army=0 — the rapid_army_collapse detection requires peak_army>=15 but at t=600 army is only 3 for Game 1; add a direct trigger: when workers drop by 5+ in a single step with no army, immediately pull ALL remaining workers to fight rather than capping at 6
-- Fix Game 10 standard_macro vs Zerg slow army erosion: army decays from 49 to 16 over 420s on 1 base without attacking — the large_army_stall fires every 30s but _last_attack_time gets reset each time, then the army retreats and rebuilds slowly; force a continuous attack (not rally) when army>=20 on 1 base past t=720 with no second base so the bot commits rather than yo-yoing
+- Fix Game 7 permanent army stall: army=59 sits idle from t=900-1080 because _permanent_attack_mode requires townhalls<=1 but the supply_cap/army>=40 path has a 60s cooldown that resets — lower the large_army_stall cooldown to 15s and remove the townhalls<=1 restriction from _permanent_attack_mode so a maxed army always attacks
+- Fix Game 3 zombie stall: army hovers at 3-5 (above the <=2 threshold) for 480+ seconds on 1 base — raise the army_effectively_zero threshold to <=5 so the stuck_no_army surrender fires for this pattern
+- Fix Game 9 four_gate post-cheese stall: army oscillates at 4-8 from t=360-960 with workers rebuilding to 40 but post_cheese_stall requires time>=600 — lower the post_cheese_stall time threshold to 420 so the bot attacks sooner after cheese fails rather than dithering for 9 minutes

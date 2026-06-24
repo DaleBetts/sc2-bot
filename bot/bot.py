@@ -111,8 +111,8 @@ class CompetitiveBot(BotAI):
         # Fix Game 3/6 zombie: 40 workers + 0 army + 1 base + tiny minerals for 600s
         # The bot can't rebuild army (no production, no minerals) but won't surrender
         _stuck_no_army = getattr(self, '_stuck_no_army_since', 0.0)
-        # Also surrender when army is tiny (<=2) rather than strictly 0, to catch Game 2 pattern
-        _army_effectively_zero = _cur_army <= 2
+        # Also surrender when army is tiny (<=5) rather than strictly 0, to catch Game 2/3 patterns
+        _army_effectively_zero = _cur_army <= 5
         if (
             self.townhalls.amount <= 1
             and _army_effectively_zero
@@ -937,7 +937,7 @@ class CompetitiveBot(BotAI):
         post_cheese_stall = (
             self._cheese_type is not None
             and not self._cheese_active
-            and self.time >= 600
+            and self.time >= 420
             and army.amount >= 3
         )
         force_attack_threshold = 3 if post_cheese_stall else (12 if not self._cheese_active else 20)
@@ -954,15 +954,14 @@ class CompetitiveBot(BotAI):
         large_army_stall = (
             army.amount >= 20
             and self.time > 600
-            and self.townhalls.amount <= 1
-            and self.time - self._last_attack_time > 30
+            and self.time - self._last_attack_time > 15
         )
         # Fix Game 10: army erodes slowly over 400s on 1 base — force permanent attack mode
         # when army has been large for a while on 1 base to prevent attrition stall
+        # Fix Game 7: remove townhalls<=1 restriction — maxed army should always attack
         _permanent_attack_mode = (
             army.amount >= 20
             and self.time > 720
-            and self.townhalls.amount <= 1
             and not self.already_pending(UnitTypeId.NEXUS)
         )
         if _permanent_attack_mode:

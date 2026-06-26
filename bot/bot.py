@@ -122,11 +122,28 @@ class CompetitiveBot(BotAI):
         ):
             if _stuck_no_army == 0.0:
                 self._stuck_no_army_since = self.time
-            elif self.time - _stuck_no_army > 90:
-                hopeless_no_base = True
+            else:
+                # Accelerate surrender when large army collapsed rapidly and workers are at risk
+                _peak_for_surrender = getattr(self, '_peak_army_log', 0)
+                _fast_surrender = (
+                    _peak_for_surrender >= 30
+                    and self.workers.amount >= 35
+                    and self.townhalls.amount <= 1
+                )
+                _surrender_timeout = 45 if _fast_surrender else 90
+                if self.time - _stuck_no_army > _surrender_timeout:
+                    hopeless_no_base = True
         else:
             if not _army_effectively_zero or self.minerals > 150:
                 self._stuck_no_army_since = 0.0
+        # Detect catastrophic late-game collapse: workers wiped after large army lost (Game 8: 73 army -> 0, then 47 workers -> 0)
+        _prev_w = getattr(self, '_prev_worker_snapshot', self.workers.amount)
+        _worker_snapshot_time = getattr(self, '_worker_snapshot_time', self.time)
+        if self.time - _worker_snapshot_time >= 55:
+            if _prev_w - self.workers.amount >= 10 and _cur_army == 0 and self.time > 600:
+                hopeless_no_base = True
+            self._prev_worker_snapshot = self.workers.amount
+            self._worker_snapshot_time = self.time
         if (self.workers.amount == 0 and (_cur_army == 0 or (self.townhalls.amount == 0 and _cur_army <= 1)) and self.time > 120) or hopeless_no_base:
             if self._dead_since == 0.0:
                 self._dead_since = self.time
@@ -207,8 +224,12 @@ class CompetitiveBot(BotAI):
             and self.time < 360
         )
         # Catastrophic worker wipe: workers dropping fast with no army — pull everyone immediately
+        # Also trigger when workers fall critically low (<=5) with no army, regardless of per-step drop
         _catastrophic_wipe = (
-            worker_drop >= 4
+            (
+                worker_drop >= 4
+                or (self.workers.amount <= 5 and worker_drop >= 1)
+            )
             and current_army_count == 0
             and self.workers.amount > 0
         )

@@ -1,29 +1,28 @@
 # Bot Analysis Report
 
-**All-time win rate:** 50.0% (521W / 462L over 1043 games)
+**All-time win rate:** 50.2% (534W / 469L over 1064 games)
 
-**Recent 10-game win rate:** → stable (50.0%)
+**Recent 10-game win rate:** ↑ improving (recent 70.0% vs all-time 50.2%)
 
 **By race (all-time):**
-- Zerg: 122W / 149L  avg game 712s
-- Protoss: 255W / 179L  avg game 651s
-- Random: 58W / 47L  avg game 598s
-- Terran: 86W / 87L  avg game 631s
+- Zerg: 124W / 152L  avg game 714s
+- Protoss: 261W / 181L  avg game 655s
+- Random: 60W / 48L  avg game 592s
+- Terran: 89W / 88L  avg game 629s
 
 **By strategy (all-time):**
-- standard_macro: 208W / 267L
-- dt_rush: 155W / 89L
-- four_gate: 158W / 106L
+- standard_macro: 215W / 272L
+- dt_rush: 158W / 90L
+- four_gate: 161W / 107L
 
 **By strategy (recent 10 games):**
-- four_gate: 0W / 3L
-- dt_rush: 2W / 0L
-- standard_macro: 3W / 2L
+- standard_macro: 5W / 2L
+- four_gate: 2W / 1L
 
 **Analysis:**
-The bot is stagnating at exactly 50% win rate both all-time and recently, suggesting no net improvement from recent patches. The critical failures in the last 10 games are: (1) Game 1 - four_gate vs Protoss where workers drop from 19 to 1 at t=180s, indicating an extremely early rush that kills workers before any defense fires (the catastrophic_wipe detection requires army==0 but may not be responding fast enough); (2) Game 8 - four_gate vs Zerg where a maxed army of 73 units on 2 bases is completely wiped at t=1200s going from 47 workers to 0 instantly, suggesting the bot attacked with everything and got annihilated without the _permanent_attack_mode being the issue - the army was sent into a losing fight; (3) Games 3 and 4 - four_gate continues to lose (0W-3L recently) with the bot either dying early to worker wipes or stalling post-cheese; and (4) Game 9 - standard_macro vs Zerg where army of 52 collapses to 0 between t=900-1020s then workers are lost, suggesting the surrender timer is not firing fast enough after total army collapse.
+The bot is performing well recently at 70% win rate vs 50.2% all-time, showing clear improvement. The 3 losses are: Game 3 (Random, standard_macro) where army erodes from 7 to 0 over t=480-720s on 1 base with workers surviving until t=780 when they suddenly all die — the army is slowly ground down but never expands or commits; Game 6 (Terran, standard_macro) where army peaks at 18 at t=480 then collapses to 4 by t=540 and the bot never expands beyond 1 base with 40 workers, then workers start dying at t=660; Game 9 (Zerg, four_gate) where the bot accumulates army=30 on 1 base from t=480-1140s never attacking with permanent_attack_mode requiring time>720 and army>=20 but somehow failing to fire — army stays at 28-30 for 400+ seconds then collapses at t=1140 suggesting the bot is attacking into a fortified position without proper force. The core issues are: (1) standard_macro never expands on 1 base when army is small (Game 3/6), (2) Game 9 four_gate post-cheese stall with army=30 idling for 10+ minutes on 1 base — the permanent_attack_mode fires but army keeps returning (not permanent), suggesting it needs to also prevent retreat.
 
 ## Applied Improvements
-- Fix Game 8 catastrophic late-game wipe: army=73 on 2 bases gets wiped and workers=47 drop to 0 at t=1200s — the _permanent_attack_mode forces attack when army>=20 and time>720, but the army was sent into certain death; add a check that when workers drop by 10+ in a single 60s window with bases<=1 remaining, immediately surrender rather than losing all workers
-- Fix Game 1 early worker wipe at t=180s: workers drop from 19 to 1 during four_gate — the catastrophic_wipe threshold of worker_drop>=4 per step should also trigger when workers fall below 5 total with no army regardless of drop rate, and should pull ALL remaining workers immediately
-- Fix Game 9 slow surrender after army collapse: army goes from 52 to 4 between t=900-960s then workers start dying — the stuck_no_army_since timer requires 90s but workers are all dead within 60s of army collapse; when army collapses from peak>=30 to <=4 and workers>=35 on 1 base, cut the surrender timer to 45s
+- Fix Game 3 and Game 6 standard_macro single-base trap: army slowly erodes while bot stays on 1 base with 38-40 workers and tiny army — lower safety_expand worker threshold from 22 to 18 and raise army threshold from <6 to <10 so the bot expands earlier before army is ground down
+- Fix Game 9 four_gate permanent stall: army=30 idles on 1 base from t=480-1140s because permanent_attack_mode requires time>720 — lower the time threshold to 480 and also require townhalls==1 so large armies on a single base always commit to attack rather than oscillating
+- Fix Game 6 and Game 3 surrender delay: after army collapses to 0 with 34-40 workers still alive on 1 base, the bot lingers for minutes while workers die — add a fast surrender trigger when army drops to 0 from a meaningful peak and workers have been dying for 60s consecutively

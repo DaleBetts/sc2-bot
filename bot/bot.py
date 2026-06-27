@@ -142,6 +142,15 @@ class CompetitiveBot(BotAI):
         if self.time - _worker_snapshot_time >= 55:
             if _prev_w - self.workers.amount >= 10 and _cur_army == 0 and self.time > 600:
                 hopeless_no_base = True
+            # Fix Game 3/6: workers slowly dying (drop>=3 per 60s window) with no army on 1 base
+            if _prev_w - self.workers.amount >= 3 and _cur_army == 0 and self.townhalls.amount <= 1 and self.time > 480:
+                _slow_wipe_since = getattr(self, '_slow_wipe_since', 0.0)
+                if _slow_wipe_since == 0.0:
+                    self._slow_wipe_since = self.time
+                elif self.time - _slow_wipe_since > 60:
+                    hopeless_no_base = True
+            else:
+                self._slow_wipe_since = 0.0
             self._prev_worker_snapshot = self.workers.amount
             self._worker_snapshot_time = self.time
         if (self.workers.amount == 0 and (_cur_army == 0 or (self.townhalls.amount == 0 and _cur_army <= 1)) and self.time > 120) or hopeless_no_base:
@@ -853,9 +862,9 @@ class CompetitiveBot(BotAI):
         safety_expand = (
             not self._cheese_active
             and self.townhalls.amount == 1
-            and self.workers.amount >= 22
-            and self.units.filter(lambda u: u.type_id in army_types).amount < 6
-            and self.time > 300
+            and self.workers.amount >= 18
+            and self.units.filter(lambda u: u.type_id in army_types).amount < 10
+            and self.time > 240
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
         )
@@ -982,7 +991,10 @@ class CompetitiveBot(BotAI):
         # Fix Game 7: remove townhalls<=1 restriction — maxed army should always attack
         _permanent_attack_mode = (
             army.amount >= 20
-            and self.time > 720
+            and (
+                self.time > 480
+                or (self.time > 720 and self.townhalls.amount >= 2)
+            )
             and not self.already_pending(UnitTypeId.NEXUS)
         )
         if _permanent_attack_mode:

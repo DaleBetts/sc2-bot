@@ -1,0 +1,3 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "37982c1f-e74e-49a3-843c-b9ba4cf0ce5b", "opponent_race": "Random", "map_name": "Persephone AIE", "strategy": "dt_rush"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "game_end", "game_time": 0.3, "wall_s": 0.1, "result": "Victory", "final_workers": 12, "final_bases": 1, "final_supply": 13, "strategy": "dt_rush", "opponent_race": "Random"}

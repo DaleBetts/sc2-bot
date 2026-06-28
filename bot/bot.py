@@ -142,6 +142,9 @@ class CompetitiveBot(BotAI):
         if self.time - _worker_snapshot_time >= 55:
             if _prev_w - self.workers.amount >= 10 and _cur_army == 0 and self.time > 600:
                 hopeless_no_base = True
+            # Early catastrophic wipe: workers drop 15+ in 60s with no army before t=400 — game is lost
+            if _prev_w - self.workers.amount >= 15 and _cur_army == 0 and self.time < 400:
+                hopeless_no_base = True
             # Fix Game 3/6: workers slowly dying (drop>=3 per 60s window) with no army on 1 base
             if _prev_w - self.workers.amount >= 3 and _cur_army == 0 and self.townhalls.amount <= 1 and self.time > 480:
                 _slow_wipe_since = getattr(self, '_slow_wipe_since', 0.0)
@@ -153,6 +156,21 @@ class CompetitiveBot(BotAI):
                 self._slow_wipe_since = 0.0
             self._prev_worker_snapshot = self.workers.amount
             self._worker_snapshot_time = self.time
+        # Game 3 pattern: 40 workers + tiny army (<15) on 1 base grinding for 300+ seconds past t=600 — unwinnable
+        _tiny_army_grind_since = getattr(self, '_tiny_army_grind_since', 0.0)
+        if (
+            self.townhalls.amount <= 1
+            and self.workers.amount >= 35
+            and _cur_army < 15
+            and self.minerals < 200
+            and self.time > 600
+        ):
+            if _tiny_army_grind_since == 0.0:
+                self._tiny_army_grind_since = self.time
+            elif self.time - _tiny_army_grind_since > 300:
+                hopeless_no_base = True
+        else:
+            self._tiny_army_grind_since = 0.0
         if (self.workers.amount == 0 and (_cur_army == 0 or (self.townhalls.amount == 0 and _cur_army <= 1)) and self.time > 120) or hopeless_no_base:
             if self._dead_since == 0.0:
                 self._dead_since = self.time
@@ -862,8 +880,8 @@ class CompetitiveBot(BotAI):
         safety_expand = (
             not self._cheese_active
             and self.townhalls.amount == 1
-            and self.workers.amount >= 18
-            and self.units.filter(lambda u: u.type_id in army_types).amount < 10
+            and self.workers.amount >= 16
+            and self.units.filter(lambda u: u.type_id in army_types).amount < 15
             and self.time > 240
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)

@@ -171,10 +171,31 @@ class CompetitiveBot(BotAI):
                 hopeless_no_base = True
         else:
             self._tiny_army_grind_since = 0.0
-        if (self.workers.amount == 0 and (_cur_army == 0 or (self.townhalls.amount == 0 and _cur_army <= 1)) and self.time > 120) or hopeless_no_base:
+        # Game 1 pattern: army + workers completely frozen (no combat, no progress) for 300s past t=600
+        # supply_used and army frozen means neither side is engaging — bot is deadlocked and will lose
+        _frozen_supply = getattr(self, '_frozen_supply_snapshot', 0)
+        _frozen_army = getattr(self, '_frozen_army_snapshot', 0)
+        _frozen_since = getattr(self, '_frozen_state_since', 0.0)
+        if self.time > 600 and _cur_army >= 20 and self.workers.amount >= 20:
+            if self.supply_used == _frozen_supply and _cur_army == _frozen_army:
+                if _frozen_since == 0.0:
+                    self._frozen_state_since = self.time
+                elif self.time - _frozen_since > 300:
+                    hopeless_no_base = True
+            else:
+                self._frozen_supply_snapshot = self.supply_used
+                self._frozen_army_snapshot = _cur_army
+                self._frozen_state_since = 0.0
+        else:
+            self._frozen_supply_snapshot = self.supply_used
+            self._frozen_army_snapshot = _cur_army
+            self._frozen_state_since = 0.0
+        _total_wipe = self.workers.amount == 0 and (_cur_army == 0 or (self.townhalls.amount == 0 and _cur_army <= 1)) and self.time > 120
+        _surrender_delay = 5 if _total_wipe else 45
+        if _total_wipe or hopeless_no_base:
             if self._dead_since == 0.0:
                 self._dead_since = self.time
-            elif self.time - self._dead_since > 45:
+            elif self.time - self._dead_since > _surrender_delay:
                 await self.client.leave()
                 return
         else:
@@ -565,8 +586,8 @@ class CompetitiveBot(BotAI):
         post_cheese_army_emergency = (
             self._cheese_type is not None
             and not self._cheese_active
-            and current_army < 12
-            and self.workers.amount >= 20
+            and current_army < 16
+            and self.workers.amount >= 18
         )
         # Fix Game 10 four_gate partial failure: attack reduces army from 11 to 5-7 but cheese
         # is still nominally active (t<480), so post_cheese_army_emergency never fires and

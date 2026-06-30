@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 50.5% (556W / 485L over 1102 games)
+**All-time win rate:** 50.7% (567W / 491L over 1119 games)
 
-**Recent 10-game win rate:** ↓ declining (recent 40.0% vs all-time 50.5%)
+**Recent 10-game win rate:** ↑ improving (recent 60.0% vs all-time 50.7%)
 
 **By race (all-time):**
-- Zerg: 130W / 156L  avg game 715s
-- Protoss: 271W / 189L  avg game 649s
-- Random: 62W / 49L  avg game 587s
-- Terran: 93W / 91L  avg game 625s
+- Zerg: 133W / 158L  avg game 713s
+- Protoss: 276W / 191L  avg game 647s
+- Random: 64W / 50L  avg game 583s
+- Terran: 94W / 92L  avg game 626s
 
 **By strategy (all-time):**
-- standard_macro: 225W / 282L
-- dt_rush: 166W / 93L
-- four_gate: 165W / 110L
+- standard_macro: 228W / 283L
+- dt_rush: 170W / 97L
+- four_gate: 169W / 111L
 
 **By strategy (recent 10 games):**
-- standard_macro: 2W / 4L
-- dt_rush: 1W / 2L
-- four_gate: 1W / 0L
+- standard_macro: 1W / 1L
+- dt_rush: 3W / 2L
+- four_gate: 2W / 1L
 
 **Analysis:**
-The bot is declining sharply (40% recent vs 50.5% all-time). The clearest patterns: Games 4 and 8 show workers wiped to 0 at t=180-240s (standard_macro vs Protoss) with only 1-2 army, indicating early rushes that the bot fails to detect and defend against — the 45s dead_since timer means the bot lingers after all workers die. Game 1 shows a catastrophic stall where army=59 and workers=42 sit frozen on 1 base from t=960-1440s (army unchanged, supply unchanged, minerals=40 frozen) then all die simultaneously at t=1500s — the permanent_attack_mode fires at t=480 with army>=20 but somehow the army never moves or the attack timer is being reset. Games 2 and 10 show dt_rush failing against Zerg and Terran respectively, with army oscillating 3-10 from t=360-660s on 1 base with workers recovering to 22-33 but never enough army to push. The _tiny_army_grind_since and _stuck_no_army_since surrender timers are not triggering because army briefly exceeds 5 or 15 resetting them.
+The bot is trending positively at 60% recent win rate vs 50.7% all-time, with clean wins in PvP (3-0) and reasonable PvZ (2-2). The two clear loss patterns are: Game 2 (dt_rush vs Zerg) where the army slowly erodes from 12 to 0 over 780s on 1 base with workers climbing to 40, never attacking or surrendering - the zealot spam emergency triggers but army bleeds away anyway; Game 9 (four_gate vs Terran) where army oscillates 3-12 from t=360-900s on 1 base with workers 22-41, never expanding or attacking decisively, running well past the 15-minute mark despite the permanent_attack_mode fix. Game 3 (dt_rush vs Random) ends quickly at t=300s which appears to be the ultra-fast surrender working correctly after worker wipe at t=240. The core remaining failure is the single-base grind where army is small (3-12) but fluctuates above the 5-unit threshold enough to reset surrender timers, and the four_gate permanent_attack_mode requires army>=20 but army never gets there.
 
 ## Applied Improvements
-- Fix Game 1 frozen stall: army=59 workers=42 frozen on 1 base from t=960-1440s then all die at t=1500 — add a surrender trigger when supply_used and army_count are unchanged for 300+ seconds past t=600, indicating the game is completely frozen/deadlocked
-- Fix Games 4 and 8: workers wiped to 0 at t=180-240s vs Protoss standard_macro — the dead_since timer waits 45s after workers=0 before surrendering; reduce to 5s when workers==0 AND army==0 AND time>60 to avoid prolonged dead games
-- Fix Games 2 and 10 dt_rush failure: army oscillates 3-10 from t=360-660s on 1 base with workers=22-33, never recovering or attacking — when dt_rush cheese has expired (time>=480) and army<8 and workers>=20, immediately switch to zealot spam from all gateways every step rather than waiting for post_cheese_army_emergency which requires cheese_type not None AND not cheese_active AND army<12
+- Fix Game 9 four_gate vs Terran permanent stall: army of 3-12 on 1 base for 540s never attacks because permanent_attack_mode requires army>=20; lower the permanent_attack_mode threshold to 8 when cheese is active (four_gate) and time>360 to force early aggression before army bleeds out
+- Fix Game 2 dt_rush vs Zerg slow bleed: army grows to 12 then decays to 0 over 780s while workers climb to 40 on 1 base; the tiny_army_grind_since trigger requires army<15 and minerals<200 and time>600 but army is often 9-12 with minerals~20-105 starting at t=360 - lower the time threshold to 360 and reduce the army threshold to 12 to catch earlier stalls, and also lower the persistence timer from 300s to 180s for single-base dt_rush games
+- Fix Game 9 four_gate vs Terran never expands: army oscillates 3-12 on 1 base with 22-41 workers for 540s; the four_gate_mid_expand requires workers>=20 and (army>=4 OR minerals>=300) which should fire but minerals are low (0-100) and army is often 3-7; lower the army threshold to 3 and add a time-based override for four_gate stalling past t=480 on 1 base

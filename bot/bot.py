@@ -158,16 +158,19 @@ class CompetitiveBot(BotAI):
             self._worker_snapshot_time = self.time
         # Game 3 pattern: 40 workers + tiny army (<15) on 1 base grinding for 300+ seconds past t=600 — unwinnable
         _tiny_army_grind_since = getattr(self, '_tiny_army_grind_since', 0.0)
+        _grind_time_threshold = 360 if (self._cheese_type is not None and self.townhalls.amount <= 1) else 600
+        _grind_army_threshold = 12 if (self._cheese_type is not None and self.townhalls.amount <= 1) else 15
+        _grind_persist_timeout = 180 if (self._cheese_type is not None and self.townhalls.amount <= 1) else 300
         if (
             self.townhalls.amount <= 1
-            and self.workers.amount >= 35
-            and _cur_army < 15
+            and self.workers.amount >= 30
+            and _cur_army < _grind_army_threshold
             and self.minerals < 200
-            and self.time > 600
+            and self.time > _grind_time_threshold
         ):
             if _tiny_army_grind_since == 0.0:
                 self._tiny_army_grind_since = self.time
-            elif self.time - _tiny_army_grind_since > 300:
+            elif self.time - _tiny_army_grind_since > _grind_persist_timeout:
                 hopeless_no_base = True
         else:
             self._tiny_army_grind_since = 0.0
@@ -855,15 +858,23 @@ class CompetitiveBot(BotAI):
         # expand early when we have enough force to defend (Games 2, 3, 7 pattern)
         four_gate_mid_expand = (
             self._cheese_type == _CHEESE_4GATE
-            and self.time >= 300
             and self.townhalls.amount == 1
-            and self.workers.amount >= 20
-            and (
-                self.units.filter(lambda u: u.type_id in army_types).amount >= 4
-                or self.minerals >= 300
-            )
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
+            and (
+                (
+                    self.time >= 300
+                    and self.workers.amount >= 20
+                    and (
+                        self.units.filter(lambda u: u.type_id in army_types).amount >= 3
+                        or self.minerals >= 300
+                    )
+                )
+                or (
+                    self.time >= 480
+                    and self.workers.amount >= 22
+                )
+            )
         )
         force_expand = (
             self.townhalls.amount == 1
@@ -1028,13 +1039,22 @@ class CompetitiveBot(BotAI):
         # Fix Game 10: army erodes slowly over 400s on 1 base — force permanent attack mode
         # when army has been large for a while on 1 base to prevent attrition stall
         # Fix Game 7: remove townhalls<=1 restriction — maxed army should always attack
+        _four_gate_force_attack = (
+            self._cheese_active
+            and self._cheese_type == _CHEESE_4GATE
+            and army.amount >= 8
+            and self.time > 360
+        )
         _permanent_attack_mode = (
-            army.amount >= 20
-            and (
-                self.time > 480
-                or (self.time > 720 and self.townhalls.amount >= 2)
+            (
+                army.amount >= 20
+                and (
+                    self.time > 480
+                    or (self.time > 720 and self.townhalls.amount >= 2)
+                )
+                and not self.already_pending(UnitTypeId.NEXUS)
             )
-            and not self.already_pending(UnitTypeId.NEXUS)
+            or _four_gate_force_attack
         )
         if _permanent_attack_mode:
             for unit in army:

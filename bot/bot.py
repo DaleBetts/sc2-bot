@@ -159,8 +159,18 @@ class CompetitiveBot(BotAI):
         # Game 3 pattern: 40 workers + tiny army (<15) on 1 base grinding for 300+ seconds past t=600 — unwinnable
         _tiny_army_grind_since = getattr(self, '_tiny_army_grind_since', 0.0)
         _grind_time_threshold = 360 if (self._cheese_type is not None and self.townhalls.amount <= 1) else 600
-        _grind_army_threshold = 12 if (self._cheese_type is not None and self.townhalls.amount <= 1) else 15
+        _grind_army_threshold = 15 if (self._cheese_type is not None and self.townhalls.amount <= 1) else 15
         _grind_persist_timeout = 180 if (self._cheese_type is not None and self.townhalls.amount <= 1) else 300
+        # Track peak army for grind detection — if army peaked above 15 and has decayed, catch it faster
+        _peak_army_grind = getattr(self, '_peak_army_grind', 0)
+        if _cur_army > _peak_army_grind:
+            self._peak_army_grind = _cur_army
+            _peak_army_grind = _cur_army
+        # Game 1 pattern: four_gate vs Zerg, army peaks at 23 then bleeds to 1 over 360s on 1 base
+        # with 40 workers — reduce army threshold to 5 once peak was high, to catch this decay
+        if _peak_army_grind >= 15 and self.townhalls.amount <= 1:
+            _grind_army_threshold = 5
+            _grind_persist_timeout = 120
         if (
             self.townhalls.amount <= 1
             and self.workers.amount >= 30
@@ -193,6 +203,22 @@ class CompetitiveBot(BotAI):
             self._frozen_supply_snapshot = self.supply_used
             self._frozen_army_snapshot = _cur_army
             self._frozen_state_since = 0.0
+        # Game 8 pattern: army>=40 on 1 base with workers>=36 past t=600, never expanding or attacking
+        # This is a deadlock even if army fluctuates slightly — surrender after 240s of this state
+        _large_army_1base_since = getattr(self, '_large_army_1base_since', 0.0)
+        if (
+            self.townhalls.amount <= 1
+            and _cur_army >= 40
+            and self.workers.amount >= 36
+            and self.time > 600
+            and not self.already_pending(UnitTypeId.NEXUS)
+        ):
+            if _large_army_1base_since == 0.0:
+                self._large_army_1base_since = self.time
+            elif self.time - _large_army_1base_since > 240:
+                hopeless_no_base = True
+        else:
+            self._large_army_1base_since = 0.0
         _total_wipe = self.workers.amount == 0 and (_cur_army == 0 or (self.townhalls.amount == 0 and _cur_army <= 1)) and self.time > 120
         _surrender_delay = 5 if _total_wipe else 45
         if _total_wipe or hopeless_no_base:
@@ -1020,6 +1046,20 @@ class CompetitiveBot(BotAI):
             and self.time >= 420
             and army.amount >= 3
         )
+        # Game 1 four_gate vs Zerg: army bled from 24->1 over t=480-840 on 1 base with 40 workers
+        # After cheese expires on 1 base with tiny army and large worker count, attack immediately
+        # with whatever army we have — sitting idle just bleeds army further
+        if (
+            self._cheese_type == _CHEESE_4GATE
+            and not self._cheese_active
+            and self.time >= 480
+            and army.amount >= 1
+            and self.workers.amount >= 25
+            and self.townhalls.amount <= 1
+        ):
+            for unit in army:
+                unit.attack(target if self.enemy_structures else self.enemy_start_locations[0])
+            return
         force_attack_threshold = 3 if post_cheese_stall else (12 if not self._cheese_active else 20)
         # Emergency: if minerals are massively floated with a large army, the bot is in a permanent
         # stall loop — force attack immediately to break out (Game 4 pattern: 32 army, 35k minerals)

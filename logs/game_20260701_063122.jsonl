@@ -1,0 +1,9 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "fbc409c0-24b5-442b-abb7-9a7e93661d44", "opponent_race": "Protoss", "map_name": "Magannatha AIE", "strategy": "four_gate"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 4.8, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 90, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 10.7, "minute": 2, "workers": 20, "bases": 1, "supply_used": 24, "supply_cap": 47, "supply_left": 23, "minerals": 150, "vespene": 56, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 17.0, "minute": 3, "workers": 22, "bases": 1, "supply_used": 30, "supply_cap": 47, "supply_left": 17, "minerals": 260, "vespene": 210, "army_count": 2, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 24.4, "minute": 4, "workers": 22, "bases": 1, "supply_used": 38, "supply_cap": 95, "supply_left": 57, "minerals": 10, "vespene": 480, "army_count": 4, "cheese_active": true}
+{"event": "periodic", "game_time": 300.0, "wall_s": 33.2, "minute": 5, "workers": 23, "bases": 1, "supply_used": 50, "supply_cap": 95, "supply_left": 45, "minerals": 5, "vespene": 558, "army_count": 13, "cheese_active": true}
+{"event": "periodic", "game_time": 360.0, "wall_s": 45.3, "minute": 6, "workers": 22, "bases": 1, "supply_used": 68, "supply_cap": 95, "supply_left": 27, "minerals": 90, "vespene": 878, "army_count": 22, "cheese_active": true}
+{"event": "game_end", "game_time": 417.0, "wall_s": 57.8, "result": "Victory", "final_workers": 23, "final_bases": 1, "final_supply": 80, "strategy": "four_gate", "opponent_race": "Protoss"}

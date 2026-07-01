@@ -1,0 +1,8 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "8ea10251-fb9e-47bf-b667-9c99347b3e02", "opponent_race": "Protoss", "map_name": "Incorporeal AIE", "strategy": "four_gate"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 7.7, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 80, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 22.5, "minute": 2, "workers": 18, "bases": 1, "supply_used": 23, "supply_cap": 47, "supply_left": 24, "minerals": 130, "vespene": 52, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 64.1, "minute": 3, "workers": 22, "bases": 1, "supply_used": 28, "supply_cap": 47, "supply_left": 19, "minerals": 405, "vespene": 216, "army_count": 1, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 107.3, "minute": 4, "workers": 22, "bases": 1, "supply_used": 38, "supply_cap": 95, "supply_left": 57, "minerals": 25, "vespene": 382, "army_count": 4, "cheese_active": true}
+{"event": "periodic", "game_time": 300.0, "wall_s": 143.3, "minute": 5, "workers": 22, "bases": 1, "supply_used": 52, "supply_cap": 95, "supply_left": 43, "minerals": 60, "vespene": 498, "army_count": 14, "cheese_active": true}
+{"event": "game_end", "game_time": 310.1, "wall_s": 145.7, "result": "Victory", "final_workers": 22, "final_bases": 1, "final_supply": 56, "strategy": "four_gate", "opponent_race": "Protoss"}

@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 50.9% (578W / 497L over 1136 games)
+**All-time win rate:** 51.2% (592W / 503L over 1156 games)
 
-**Recent 10-game win rate:** ↑ improving (recent 60.0% vs all-time 50.9%)
+**Recent 10-game win rate:** ↑ improving (recent 70.0% vs all-time 51.2%)
 
 **By race (all-time):**
-- Zerg: 135W / 159L  avg game 713s
-- Protoss: 282W / 196L  avg game 644s
-- Random: 65W / 50L  avg game 582s
-- Terran: 96W / 92L  avg game 624s
+- Zerg: 140W / 159L  avg game 711s
+- Protoss: 288W / 198L  avg game 643s
+- Random: 66W / 52L  avg game 584s
+- Terran: 98W / 94L  avg game 624s
 
 **By strategy (all-time):**
-- standard_macro: 232W / 285L
-- dt_rush: 173W / 98L
-- four_gate: 173W / 114L
+- standard_macro: 239W / 289L
+- dt_rush: 178W / 100L
+- four_gate: 175W / 114L
 
 **By strategy (recent 10 games):**
-- four_gate: 3W / 1L
-- standard_macro: 3W / 2L
-- dt_rush: 0W / 1L
+- standard_macro: 5W / 2L
+- dt_rush: 1W / 1L
+- four_gate: 1W / 0L
 
 **Analysis:**
-Recent win rate (60%) significantly exceeds all-time (50.9%), showing improvement. The 4 recent losses break down as: Game 1 (four_gate vs Zerg) - army builds to 24 then bleeds from t=480-840 on 1 base, never triggering surrender despite tiny_army_grind thresholds; Game 3 (standard_macro vs Protoss) - army builds to 11 then collapses to 2 by t=540 and game ends, but standard_macro defense_emergency should have fired; Game 7 (dt_rush vs Protoss) - workers wiped from 20 to 1 at t=180, fast surrender fires correctly; Game 8 (standard_macro vs Protoss) - massive army builds to 59 on 1 base through t=840-960 and supply_used goes to 158/135 (over cap) suggesting a frozen/deadlocked state, yet frozen_state trigger never fires because it resets when army changes. Game 1 is the most critical: four_gate vs Zerg, army bleeds from 24->1 over 360s on 1 base with 40+ workers and minerals 0-95, but _grind_army_threshold for cheese is 12 so army 23,15,9,6,2,1 doesn't trigger until army<12 - yet army oscillates above 12 early resetting the timer each time.
+Recent win rate (70%) is significantly above all-time (51.2%), indicating the bot is improving. The 3 losses are: Game 1 (standard_macro vs Terran, ends at t=540 with 2 base then collapses to 1 base with army=2-4 and workers bleeding), Game 2 (dt_rush vs Protoss, catastrophic permanent freeze at t=960-1200 with army=37, workers=42 on 1 base, supply identical every step — the existing frozen_state trigger requires army>=20 but army=37 satisfies this, yet the supply_used+army check must not be firing because supply_used may fluctuate slightly), Game 4 (standard_macro vs Random, ends at t=780 with 40 workers, army oscillating 3-7 on 1 base from t=540 onward — the tiny_army_grind_since and stuck_no_army triggers should be catching this but army oscillates 3-7 which is above the army<=5 threshold for _army_effectively_zero). Game 2 is the most critical: from t=960-1200 supply_used=116, army=37, workers=42 are completely frozen — the frozen_state trigger should fire but clearly is not, possibly because supply_used fluctuates minimally or the snapshot is being reset.
 
 ## Applied Improvements
-- Fix Game 1 four_gate vs Zerg bleed: army decays from 23->1 over t=480-840 on 1 base with 40 workers, but tiny_army_grind_since keeps resetting because army briefly exceeds the threshold; add a separate trigger specifically for four_gate vs Zerg where army peaked above 15 but has been declining for 300s with workers>=30 and no expansion
-- Fix Game 8 standard_macro vs Protoss frozen stall: army=59 workers=40 on 1 base from t=840-960 with supply_used=158-160 and supply_cap=135-183 showing a deadlocked/confused state; the frozen trigger resets when army value changes by even 1 unit, so add a secondary check when army>=40 on 1 base past t=600 with no expansion pending for 240s regardless of minor army fluctuations
-- Fix Game 1 four_gate vs Zerg never attacking: army builds to 24 at t=420 on 1 base but _four_gate_force_attack requires army>=8 and time>360 which should fire — however the army bleeds from 24 to 1 suggesting attacks are happening but losing; the bot should force surrender faster when four_gate vs Zerg results in army<8 with workers>=35 on 1 base past t=540 since this is unrecoverable
+- Fix Game 2 dt_rush permanent freeze: the frozen state detector resets whenever supply_used OR army changes by even 1, but also add a secondary check tracking army+workers together being unchanged for 180s past t=600 specifically when on 1 base — use a tolerance-based comparison instead of exact equality so minor fluctuations don't reset the timer
+- Fix Game 4 standard_macro vs Random: army oscillates 3-7 on 1 base from t=540-780 with 40 workers — the _army_effectively_zero threshold of <=5 misses army=6-7; raise the stuck_no_army threshold to 8 when time>480 on 1 base with workers>=35 to catch this oscillating small army pattern faster
+- Fix Game 1 standard_macro vs Terran collapse: bot expands to 2 bases at t=180 but immediately loses workers (14 at t=240) and retreats to 1 base with army=2-4 and never recovers; when bases drop from 2 to 1 after t=180 with army<5 and workers<20, immediately force all available units to defend and reduce the stuck_no_army surrender timer to 60s instead of 90s for this rapid-collapse scenario

@@ -111,8 +111,14 @@ class CompetitiveBot(BotAI):
         # Fix Game 3/6 zombie: 40 workers + 0 army + 1 base + tiny minerals for 600s
         # The bot can't rebuild army (no production, no minerals) but won't surrender
         _stuck_no_army = getattr(self, '_stuck_no_army_since', 0.0)
-        # Also surrender when army is tiny (<=5) rather than strictly 0, to catch Game 2/3 patterns
-        _army_effectively_zero = _cur_army <= 5
+        # Also surrender when army is tiny rather than strictly 0, to catch oscillating small army patterns
+        # Raise threshold to 8 when deeply stalled on 1 base with large worker count
+        _deep_stall_1base = (
+            self.townhalls.amount <= 1
+            and self.workers.amount >= 35
+            and self.time > 480
+        )
+        _army_effectively_zero = _cur_army <= (8 if _deep_stall_1base else 5)
         if (
             self.townhalls.amount <= 1
             and _army_effectively_zero
@@ -130,7 +136,14 @@ class CompetitiveBot(BotAI):
                     and self.workers.amount >= 35
                     and self.townhalls.amount <= 1
                 )
-                _surrender_timeout = 45 if _fast_surrender else 90
+                # Also surrender fast when base was lost early and army never recovered
+                _early_base_loss = (
+                    getattr(self, '_peak_bases_seen', 1) >= 2
+                    and self.townhalls.amount <= 1
+                    and self.workers.amount < 25
+                    and self.time > 300
+                )
+                _surrender_timeout = 45 if (_fast_surrender or _early_base_loss) else 90
                 if self.time - _stuck_no_army > _surrender_timeout:
                     hopeless_no_base = True
         else:
@@ -190,11 +203,17 @@ class CompetitiveBot(BotAI):
         _frozen_army = getattr(self, '_frozen_army_snapshot', 0)
         _frozen_since = getattr(self, '_frozen_state_since', 0.0)
         if self.time > 600 and _cur_army >= 20 and self.workers.amount >= 20:
-            if self.supply_used == _frozen_supply and _cur_army == _frozen_army:
+            # Use tolerance of 2 for supply and 3 for army so minor fluctuations don't reset
+            supply_stable = abs(self.supply_used - _frozen_supply) <= 2
+            army_stable = abs(_cur_army - _frozen_army) <= 3
+            if supply_stable and army_stable:
                 if _frozen_since == 0.0:
                     self._frozen_state_since = self.time
-                elif self.time - _frozen_since > 300:
-                    hopeless_no_base = True
+                else:
+                    # On 1 base, surrender faster (180s); on 2+ bases, 300s
+                    _frozen_timeout = 180 if self.townhalls.amount <= 1 else 300
+                    if self.time - _frozen_since > _frozen_timeout:
+                        hopeless_no_base = True
             else:
                 self._frozen_supply_snapshot = self.supply_used
                 self._frozen_army_snapshot = _cur_army

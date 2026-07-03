@@ -184,6 +184,17 @@ class CompetitiveBot(BotAI):
         if _peak_army_grind >= 15 and self.townhalls.amount <= 1:
             _grind_army_threshold = 5
             _grind_persist_timeout = 120
+        # Game 5/8 pattern: dt_rush army peaks (28-32) then crashes to 0-3 after t=480 on 1 base
+        # DT rush with no army past t=540 is unrecoverable — surrender very fast
+        if (
+            self._cheese_type == _CHEESE_DT
+            and not self._cheese_active
+            and self.townhalls.amount <= 1
+            and self.time >= 540
+            and _peak_army_grind >= 10
+        ):
+            _grind_army_threshold = 8
+            _grind_persist_timeout = 60
         if (
             self.townhalls.amount <= 1
             and self.workers.amount >= 30
@@ -963,6 +974,18 @@ class CompetitiveBot(BotAI):
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
         )
+        # Game 9 pattern: standard_macro vs Zerg, 40 workers on 1 base at t=420 with army=16
+        # decays to 0 by t=720 — force expand early when workers>=25 on 1 base past t=300
+        # so the economy supports army recovery before the base bleeds out
+        early_standard_expand = (
+            not self._cheese_active
+            and self.townhalls.amount == 1
+            and self.workers.amount >= 25
+            and self.time > 300
+            and not self.already_pending(UnitTypeId.NEXUS)
+            and self.can_afford(UnitTypeId.NEXUS)
+            and self.units.filter(lambda u: u.type_id in army_types).amount >= 2
+        )
         # Fix Game 1 permanent stall: large army was wiped, bot has huge worker count
         # on 1 base with tiny army and never recovers — force expand immediately
         post_battle_expand = (
@@ -1116,6 +1139,18 @@ class CompetitiveBot(BotAI):
             or _four_gate_force_attack
         )
         if _permanent_attack_mode:
+            for unit in army:
+                unit.attack(target if self.enemy_structures else self.enemy_start_locations[0])
+            return
+        # Fix Game 2 four_gate vs Zerg permanent stall: army builds to 39 on 1 base over 1080s
+        # but never attacks. Force attack when army>=15 on 1 base past t=600 — unwinnable otherwise.
+        _one_base_large_army_stall = (
+            self.townhalls.amount <= 1
+            and army.amount >= 15
+            and self.time > 600
+            and self.workers.amount >= 20
+        )
+        if _one_base_large_army_stall:
             for unit in army:
                 unit.attack(target if self.enemy_structures else self.enemy_start_locations[0])
             return

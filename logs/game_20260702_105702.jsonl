@@ -1,0 +1,7 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "9c63d6d3-a5f9-48d6-b6c2-bbd6b055ff2a", "opponent_race": "Protoss", "map_name": "Pylon AIE", "strategy": "dt_rush"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 60.0, "wall_s": 10.3, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 85, "vespene": 0, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 120.0, "wall_s": 21.4, "minute": 2, "workers": 19, "bases": 1, "supply_used": 24, "supply_cap": 47, "supply_left": 23, "minerals": 130, "vespene": 56, "army_count": 0, "cheese_active": true}
+{"event": "periodic", "game_time": 180.0, "wall_s": 36.8, "minute": 3, "workers": 19, "bases": 1, "supply_used": 26, "supply_cap": 47, "supply_left": 21, "minerals": 20, "vespene": 122, "army_count": 1, "cheese_active": true}
+{"event": "periodic", "game_time": 240.0, "wall_s": 51.6, "minute": 4, "workers": 9, "bases": 1, "supply_used": 10, "supply_cap": 47, "supply_left": 37, "minerals": 45, "vespene": 180, "army_count": 0, "cheese_active": true}
+{"event": "game_end", "game_time": 286.9, "wall_s": 62.7, "result": "Defeat", "final_workers": 0, "final_bases": 1, "final_supply": 0, "strategy": "dt_rush", "opponent_race": "Protoss"}

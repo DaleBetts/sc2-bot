@@ -195,6 +195,17 @@ class CompetitiveBot(BotAI):
         ):
             _grind_army_threshold = 8
             _grind_persist_timeout = 60
+        # Game 5/6 pattern: standard_macro or dt_rush vs Zerg, large army built on 1 base
+        # then collapses to 0 at t=840 with 40 workers — unrecoverable on 1 base past t=600
+        if (
+            self.townhalls.amount <= 1
+            and self.workers.amount >= 30
+            and self.time >= 600
+            and _peak_army_grind >= 15
+            and _cur_army <= 3
+        ):
+            _grind_army_threshold = 4
+            _grind_persist_timeout = 90
         if (
             self.townhalls.amount <= 1
             and self.workers.amount >= 30
@@ -980,11 +991,11 @@ class CompetitiveBot(BotAI):
         early_standard_expand = (
             not self._cheese_active
             and self.townhalls.amount == 1
-            and self.workers.amount >= 25
-            and self.time > 300
+            and self.workers.amount >= 22
+            and self.time > 240
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
-            and self.units.filter(lambda u: u.type_id in army_types).amount >= 2
+            and self.units.filter(lambda u: u.type_id in army_types).amount >= 1
         )
         # Fix Game 1 permanent stall: large army was wiped, bot has huge worker count
         # on 1 base with tiny army and never recovers — force expand immediately
@@ -1006,6 +1017,7 @@ class CompetitiveBot(BotAI):
             or oversaturated_expand
             or post_battle_expand
             or safety_expand
+            or early_standard_expand
         ):
             await self.expand_now()
 

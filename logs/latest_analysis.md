@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 50.9% (611W / 528L over 1200 games)
+**All-time win rate:** 51.0% (624W / 538L over 1223 games)
 
-**Recent 10-game win rate:** ↑ improving (recent 60.0% vs all-time 50.9%)
+**Recent 10-game win rate:** ↑ improving (recent 70.0% vs all-time 51.0%)
 
 **By race (all-time):**
-- Zerg: 142W / 167L  avg game 714s
-- Protoss: 297W / 209L  avg game 639s
-- Random: 68W / 56L  avg game 585s
-- Terran: 104W / 96L  avg game 619s
+- Zerg: 146W / 169L  avg game 710s
+- Protoss: 302W / 213L  avg game 638s
+- Random: 70W / 57L  avg game 583s
+- Terran: 106W / 99L  avg game 617s
 
 **By strategy (all-time):**
-- standard_macro: 247W / 302L
-- dt_rush: 182W / 106L
-- four_gate: 182W / 120L
+- standard_macro: 253W / 305L
+- dt_rush: 184W / 110L
+- four_gate: 187W / 123L
 
 **By strategy (recent 10 games):**
-- standard_macro: 2W / 2L
-- four_gate: 4W / 0L
-- dt_rush: 0W / 2L
+- four_gate: 3W / 2L
+- dt_rush: 1W / 0L
+- standard_macro: 3W / 1L
 
 **Analysis:**
-The bot is performing well recently (60% vs 50.9% all-time), showing clear improvement. The two losses are: Game 5 (standard_macro vs Zerg) where army builds to 27 by t=780 on 1 base then completely collapses to 0 by t=840, with workers also dying from 40 to 25 by t=900 — the bot never expanded despite having 40 workers from t=420 onward; and Game 6 (dt_rush vs Zerg) where army builds to 25 by t=660 then bleeds to 2 by t=900 on 1 base with 40 workers, also never expanding. Game 8 (dt_rush vs Random) is a loss-in-progress at t=780 with army=16 on 1 base but workers oscillating 10-32 suggesting repeated worker wipes. The core pattern in the losses is: large army (20-27) built on 1 base with 40 workers, army gets attrited attacking Zerg (Game 5) or bleeds slowly (Game 6), but the bot never takes a second base despite workers>=40 from t=420+, leaving it unable to rebuild. The early_standard_expand condition requires army>=2 which should fire but clearly isn't triggering fast enough when workers>=40 at t=420 on 1 base.
+The bot is performing well recently at 70% win rate vs 51% all-time, showing clear improvement. The two losses are Game 3 (four_gate vs Protoss: army grows to 52 on 1 base by t=840-900 but never attacks — the _four_gate_force_attack fires at army>=8 after t=360 but the permanent_attack_mode requires army>=20 after t=480, yet the army sits at 52 for 120s without attacking, suggesting the attack logic is being overridden by cheese state checks or the target selection is failing) and Game 8 (four_gate vs Protoss: army peaks at 13 at t=360 then collapses to 3-8 oscillating from t=420-720, indicating repeated attacks are being launched but lost, and the bot never surrenders despite being stuck in an unrecoverable loop). Game 9 (standard_macro vs Terran) shows a collapse pattern where army decays from 8 to 0 by t=600 with 40 workers on 1 base and workers then drop from 40 to 31 — the surrender triggers should catch this but apparently don't fire before t=600. The primary fixes needed are: forcing surrender in Game 8's oscillating small army pattern for four_gate vs Protoss, ensuring Game 3's large army actually attacks when cheese is nominally expired, and catching the Game 9 rapid collapse faster.
 
 ## Applied Improvements
-- Lower the early_standard_expand worker threshold from 25 to 22 and time threshold from 300 to 240, so the bot expands much earlier in standard_macro before army attrition begins — Games 5 and 6 both had 40 workers trapped on 1 base from t=420 onward
-- Add early_standard_expand to the expansion condition list so it actually triggers expansion — it was computed but never included in the final if-statement, meaning the lowered thresholds had no effect
-- In Game 5 and 6, dt_rush/standard_macro vs Zerg on 1 base with army 20-27 that then collapses — add a surrender trigger specifically for when army was large (>=15 peak) but has been below 5 for 120s on 1 base with workers>=30 past t=600, which is the exact pattern seen in Game 5 t=840 and Game 6 t=840-900
+- Game 3 fix: army of 52 on 1 base at t=840-900 never attacks — the cheese active check blocks permanent_attack_mode; add a hard override that forces attack when four_gate cheese has expired (time>=480) and army>=15 on 1 base regardless of any other condition
+- Game 8 fix: four_gate vs Protoss oscillates army 3-13 from t=420-720 on 1 base — surrender faster when four_gate cheese has expired and army has been below 10 for 90s past t=480 with workers>=20, since this oscillating small army pattern is unrecoverable
+- Game 9 fix: standard_macro vs Terran, army decays from 8 to 0 by t=600 with 40 workers on 1 base, workers then drop 9 in 60s — the worker snapshot fires correctly but the slow_wipe_since timer only triggers after 60s of consecutive drops; reduce the slow wipe surrender timer to 30s and lower the worker drop threshold to 2 when army is 0 and time>480 with workers>=30 to catch this faster

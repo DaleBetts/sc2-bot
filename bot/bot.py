@@ -159,11 +159,14 @@ class CompetitiveBot(BotAI):
             if _prev_w - self.workers.amount >= 15 and _cur_army == 0 and self.time < 400:
                 hopeless_no_base = True
             # Fix Game 3/6: workers slowly dying (drop>=3 per 60s window) with no army on 1 base
-            if _prev_w - self.workers.amount >= 3 and _cur_army == 0 and self.townhalls.amount <= 1 and self.time > 480:
+            # Game 9 fix: lower threshold to 2 and timer to 30s when workers>=30 on 1 base past t=480
+            _slow_wipe_worker_threshold = 2 if (self.workers.amount >= 30 and self.townhalls.amount <= 1 and self.time > 480) else 3
+            _slow_wipe_persist = 30 if (self.workers.amount >= 30 and self.townhalls.amount <= 1 and self.time > 480) else 60
+            if _prev_w - self.workers.amount >= _slow_wipe_worker_threshold and _cur_army == 0 and self.townhalls.amount <= 1 and self.time > 480:
                 _slow_wipe_since = getattr(self, '_slow_wipe_since', 0.0)
                 if _slow_wipe_since == 0.0:
                     self._slow_wipe_since = self.time
-                elif self.time - _slow_wipe_since > 60:
+                elif self.time - _slow_wipe_since > _slow_wipe_persist:
                     hopeless_no_base = True
             else:
                 self._slow_wipe_since = 0.0
@@ -195,6 +198,18 @@ class CompetitiveBot(BotAI):
         ):
             _grind_army_threshold = 8
             _grind_persist_timeout = 60
+        # Game 8 fix: four_gate vs Protoss oscillates army 3-13 from t=420-720 on 1 base
+        # with workers>=20 — repeated small attacks are being lost; surrender faster
+        if (
+            self._cheese_type == _CHEESE_4GATE
+            and not self._cheese_active
+            and self.townhalls.amount <= 1
+            and self.time >= 480
+            and _peak_army_grind >= 10
+            and self.workers.amount >= 20
+        ):
+            _grind_army_threshold = 10
+            _grind_persist_timeout = 90
         # Game 5/6 pattern: standard_macro or dt_rush vs Zerg, large army built on 1 base
         # then collapses to 0 at t=840 with 40 workers — unrecoverable on 1 base past t=600
         if (
@@ -1139,6 +1154,20 @@ class CompetitiveBot(BotAI):
             and army.amount >= 8
             and self.time > 360
         )
+        # Game 3 fix: four_gate cheese expired but army=52 on 1 base never attacks
+        # The post_cheese_stall path requires army>=3 but permanent_attack_mode blocks
+        # Force attack immediately when four_gate has expired and army is large on 1 base
+        _four_gate_post_cheese_large_army = (
+            self._cheese_type == _CHEESE_4GATE
+            and not self._cheese_active
+            and self.time >= 480
+            and army.amount >= 15
+            and self.townhalls.amount <= 1
+        )
+        if _four_gate_post_cheese_large_army:
+            for unit in army:
+                unit.attack(target if self.enemy_structures else self.enemy_start_locations[0])
+            return
         _permanent_attack_mode = (
             (
                 army.amount >= 20

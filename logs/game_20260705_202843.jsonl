@@ -1,0 +1,7 @@
+{"event": "game_start", "game_time": 0.0, "wall_s": 0.0, "opponent_id": "803b2a8b-dd97-4f37-9d81-fe89ccd0928e", "opponent_race": "Zerg", "map_name": "Ley Lines AIE", "strategy": "standard_macro"}
+{"event": "periodic", "game_time": 0.0, "wall_s": 0.0, "minute": 0, "workers": 12, "bases": 1, "supply_used": 12, "supply_cap": 15, "supply_left": 3, "minerals": 50, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 60.0, "wall_s": 8.0, "minute": 1, "workers": 16, "bases": 1, "supply_used": 17, "supply_cap": 39, "supply_left": 22, "minerals": 95, "vespene": 0, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 120.0, "wall_s": 17.4, "minute": 2, "workers": 19, "bases": 1, "supply_used": 24, "supply_cap": 47, "supply_left": 23, "minerals": 140, "vespene": 72, "army_count": 0, "cheese_active": false}
+{"event": "periodic", "game_time": 180.0, "wall_s": 28.0, "minute": 3, "workers": 25, "bases": 1, "supply_used": 34, "supply_cap": 47, "supply_left": 13, "minerals": 30, "vespene": 138, "army_count": 2, "cheese_active": false}
+{"event": "periodic", "game_time": 240.0, "wall_s": 41.2, "minute": 4, "workers": 30, "bases": 1, "supply_used": 49, "supply_cap": 71, "supply_left": 22, "minerals": 130, "vespene": 258, "army_count": 2, "cheese_active": false}
+{"event": "game_end", "game_time": 298.1, "wall_s": 57.8, "result": "Defeat", "final_workers": 0, "final_bases": 1, "final_supply": 0, "strategy": "standard_macro", "opponent_race": "Zerg"}

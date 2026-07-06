@@ -221,6 +221,17 @@ class CompetitiveBot(BotAI):
         ):
             _grind_army_threshold = 4
             _grind_persist_timeout = 90
+        # Game 1 and 5 fix: army collapses from 30 to <=6 on 1 base with 40 workers past t=480
+        # The grind detection is too slow — catch the rapid collapse earlier with a tighter trigger
+        if (
+            self.townhalls.amount <= 1
+            and self.workers.amount >= 30
+            and self.time >= 480
+            and _peak_army_grind >= 25
+            and _cur_army <= 6
+        ):
+            _grind_army_threshold = 7
+            _grind_persist_timeout = 90
         if (
             self.townhalls.amount <= 1
             and self.workers.amount >= 30
@@ -264,14 +275,14 @@ class CompetitiveBot(BotAI):
         _large_army_1base_since = getattr(self, '_large_army_1base_since', 0.0)
         if (
             self.townhalls.amount <= 1
-            and _cur_army >= 40
-            and self.workers.amount >= 36
+            and _cur_army >= 30
+            and self.workers.amount >= 30
             and self.time > 600
             and not self.already_pending(UnitTypeId.NEXUS)
         ):
             if _large_army_1base_since == 0.0:
                 self._large_army_1base_since = self.time
-            elif self.time - _large_army_1base_since > 240:
+            elif self.time - _large_army_1base_since > 120:
                 hopeless_no_base = True
         else:
             self._large_army_1base_since = 0.0

@@ -221,6 +221,17 @@ class CompetitiveBot(BotAI):
         ):
             _grind_army_threshold = 4
             _grind_persist_timeout = 90
+        # Game 7 fix: army drops to 0 on 1 base with 40 workers past t=600 — surrender in 30s
+        # The army was large (>=15 peak) and now gone, workers are at risk, unrecoverable
+        if (
+            self.townhalls.amount <= 1
+            and self.workers.amount >= 30
+            and self.time >= 600
+            and _peak_army_grind >= 15
+            and _cur_army == 0
+        ):
+            _grind_army_threshold = 1
+            _grind_persist_timeout = 30
         # Game 1 and 5 fix: army collapses from 30 to <=6 on 1 base with 40 workers past t=480
         # The grind detection is too slow — catch the rapid collapse earlier with a tighter trigger
         if (
@@ -994,9 +1005,19 @@ class CompetitiveBot(BotAI):
         )
         # Emergency expand: if we have 30+ workers on 1 base we are oversaturated
         # This catches the Game 2 pattern where cheese ends but bot never expands
+        # Raise to unconditional (ignores cheese_active) when workers>=36 past t=420
         oversaturated_expand = (
             self.townhalls.amount == 1
             and self.workers.amount >= 30
+            and not self.already_pending(UnitTypeId.NEXUS)
+            and self.can_afford(UnitTypeId.NEXUS)
+        )
+        # Hard unconditional expand: 36+ workers on 1 base past t=420 regardless of cheese state
+        # Fixes Games 3 and 4 where 40 workers sit on 1 base forever
+        hard_oversaturated_expand = (
+            self.townhalls.amount == 1
+            and self.workers.amount >= 36
+            and self.time > 420
             and not self.already_pending(UnitTypeId.NEXUS)
             and self.can_afford(UnitTypeId.NEXUS)
         )
@@ -1041,6 +1062,7 @@ class CompetitiveBot(BotAI):
             or large_army_expand
             or four_gate_mid_expand
             or oversaturated_expand
+            or hard_oversaturated_expand
             or post_battle_expand
             or safety_expand
             or early_standard_expand

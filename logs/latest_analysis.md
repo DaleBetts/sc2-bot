@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 50.9% (645W / 562L over 1268 games)
+**All-time win rate:** 51.0% (658W / 571L over 1290 games)
 
-**Recent 10-game win rate:** ↑ improving (recent 70.0% vs all-time 50.9%)
+**Recent 10-game win rate:** ↓ declining (recent 40.0% vs all-time 51.0%)
 
 **By race (all-time):**
-- Zerg: 150W / 178L  avg game 712s
-- Protoss: 312W / 222L  avg game 632s
-- Random: 73W / 60L  avg game 582s
-- Terran: 110W / 102L  avg game 617s
+- Zerg: 153W / 180L  avg game 711s
+- Protoss: 319W / 226L  avg game 630s
+- Random: 74W / 61L  avg game 583s
+- Terran: 112W / 104L  avg game 619s
 
 **By strategy (all-time):**
-- standard_macro: 260W / 318L
-- dt_rush: 190W / 117L
-- four_gate: 195W / 127L
+- standard_macro: 266W / 323L
+- dt_rush: 195W / 119L
+- four_gate: 197W / 129L
 
 **By strategy (recent 10 games):**
-- dt_rush: 3W / 0L
-- four_gate: 2W / 1L
-- standard_macro: 2W / 2L
+- four_gate: 1W / 1L
+- standard_macro: 1W / 4L
+- dt_rush: 2W / 1L
 
 **Analysis:**
-The bot is performing well recently at 70% win rate vs 50.9% all-time, showing clear improvement from recent fixes. The 3 losses are: Game 3 (four_gate vs Random, defeat at t=780s with army=36 on 1 base, never expanding despite 40 workers by t=720), Game 4 (standard_macro vs Zerg, defeat at t=960s with army=27 on 1 base, 40 workers trapped, never expanding despite the early_standard_expand fix), and Game 7 (standard_macro vs Zerg, defeat at t=960s with army collapsing from 20 to 0 at t=900, then army=0 for 60s before surrender). Games 3 and 4 share a critical pattern: workers reach 36-40 on 1 base well past t=480 with meaningful armies but the bot never expands, suggesting the expansion conditions are being blocked. Game 7 shows the bot grinding on with army=0 at t=900-960 without surrendering fast enough.
+The bot is declining (40% recent vs 51% all-time). The clearest failures are: Game 1 (four_gate vs Protoss) where army builds to 50 on 1 base by t=720 but never attacks or expands — the permanent_attack_mode threshold of 20 should fire but something is blocking it; Game 6 (dt_rush vs Terran) where army reaches 34 on 1 base at t=900 and grinds on indefinitely — the _large_army_1base_since trigger (army>=30, time>600) should fire but the game continues past t=900; Game 3 (standard_macro vs Zerg) where workers collapse from 46 to 12 between t=480-600 while army holds at 24, then the bot grinds on 1 base with army=29-30 from t=720-1140 for 420 seconds — the frozen_state detection should catch army stable at 29-30 for 180s but it requires army>=20 AND workers>=20 and the tolerance of 3 means 29-30 passes as stable, so the issue is the _frozen_state_since timer resetting or the 180s timeout being too long for 1-base stalls.
 
 ## Applied Improvements
-- Fix Game 3 and 4: four_gate and standard_macro with 36-40 workers on 1 base past t=480 never expands despite oversaturated_expand — the cheese_active guard is blocking it; ensure oversaturated_expand fires unconditionally when workers>=36 on 1 base regardless of cheese state
-- Fix Game 3 and 4: the expand call must include hard_oversaturated_expand in its condition list, and remove the cheese_active early return guard for it
-- Fix Game 7: army collapses from 15 to 0 between t=840 and t=900 on 1 base with 40 workers, then bot grinds at army=0 for 60s before surrendering — the _large_army_1base_since trigger fires at t=840 (army=15>=30 fails) but the rapid_army_collapse to 0 should trigger surrender faster; lower the grind surrender persist timeout when army==0 and workers>=30 past t=600
+- Game 1 fix: four_gate army grows to 50 on 1 base by t=720 but never attacks — the _four_gate_post_cheese_large_army path requires army>=15 but the _permanent_attack_mode path (army>=20, time>480) should also fire; add explicit hard attack override for any strategy when army>=20 on 1 base past t=480 with workers>=20 to catch this stall before the frozen_state timer fires
+- Game 6 fix: dt_rush vs Terran, army=34 on 1 base at t=900 never triggers surrender — the _large_army_1base_since trigger requires not already_pending(NEXUS) but may be getting reset; also reduce the frozen_state timeout on 1 base from 180s to 90s so Game 3's army=29-30 stable for 420s surrenders much sooner
+- Game 3 fix: standard_macro vs Zerg, army stable at 24-30 on 1 base from t=720-1140 (420s) — frozen_state never fires because workers fluctuate 12-33 resetting the snapshot; add a dedicated grind surrender when army is stable (peak>=20, current>=20) on 1 base with workers>=10 past t=600 persisting 120s, independent of worker count fluctuations

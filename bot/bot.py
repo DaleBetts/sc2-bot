@@ -256,6 +256,26 @@ class CompetitiveBot(BotAI):
                 hopeless_no_base = True
         else:
             self._tiny_army_grind_since = 0.0
+        # Game 3 fix: army stable at 24-30 on 1 base for 420s — workers fluctuate so frozen_state
+        # resets constantly; add independent stable-army-on-1base surrender
+        _stable_army_1base_since = getattr(self, '_stable_army_1base_since', 0.0)
+        _stable_army_1base_snapshot = getattr(self, '_stable_army_1base_snapshot', 0)
+        if (
+            self.townhalls.amount <= 1
+            and _cur_army >= 20
+            and self.time > 600
+        ):
+            if abs(_cur_army - _stable_army_1base_snapshot) <= 4:
+                if _stable_army_1base_since == 0.0:
+                    self._stable_army_1base_since = self.time
+                elif self.time - _stable_army_1base_since > 120:
+                    hopeless_no_base = True
+            else:
+                self._stable_army_1base_snapshot = _cur_army
+                self._stable_army_1base_since = 0.0
+        else:
+            self._stable_army_1base_snapshot = _cur_army
+            self._stable_army_1base_since = 0.0
         # Game 1 pattern: army + workers completely frozen (no combat, no progress) for 300s past t=600
         # supply_used and army frozen means neither side is engaging — bot is deadlocked and will lose
         _frozen_supply = getattr(self, '_frozen_supply_snapshot', 0)
@@ -269,8 +289,8 @@ class CompetitiveBot(BotAI):
                 if _frozen_since == 0.0:
                     self._frozen_state_since = self.time
                 else:
-                    # On 1 base, surrender faster (180s); on 2+ bases, 300s
-                    _frozen_timeout = 180 if self.townhalls.amount <= 1 else 300
+                    # On 1 base, surrender faster (60s); on 2+ bases, 300s
+                    _frozen_timeout = 60 if self.townhalls.amount <= 1 else 300
                     if self.time - _frozen_since > _frozen_timeout:
                         hopeless_no_base = True
             else:
@@ -1197,7 +1217,14 @@ class CompetitiveBot(BotAI):
             and army.amount >= 15
             and self.townhalls.amount <= 1
         )
-        if _four_gate_post_cheese_large_army:
+        # Hard override: any strategy with army>=20 on 1 base past t=480 must attack
+        # Fixes Game 1 four_gate: 50 army on 1 base at t=720 with workers=38 never attacks
+        _large_army_1base_attack = (
+            self.townhalls.amount <= 1
+            and army.amount >= 20
+            and self.time >= 480
+        )
+        if _four_gate_post_cheese_large_army or _large_army_1base_attack:
             for unit in army:
                 unit.attack(target if self.enemy_structures else self.enemy_start_locations[0])
             return

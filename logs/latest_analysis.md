@@ -1,29 +1,29 @@
 # Bot Analysis Report
 
-**All-time win rate:** 51.0% (658W / 571L over 1290 games)
+**All-time win rate:** 50.9% (701W / 614L over 1376 games)
 
-**Recent 10-game win rate:** ↓ declining (recent 40.0% vs all-time 51.0%)
+**Recent 10-game win rate:** ↓ declining (recent 30.0% vs all-time 50.9%)
 
 **By race (all-time):**
-- Zerg: 153W / 180L  avg game 711s
-- Protoss: 319W / 226L  avg game 630s
-- Random: 74W / 61L  avg game 583s
-- Terran: 112W / 104L  avg game 619s
+- Zerg: 163W / 189L  avg game 708s
+- Protoss: 337W / 247L  avg game 627s
+- Random: 80W / 66L  avg game 587s
+- Terran: 121W / 112L  avg game 615s
 
 **By strategy (all-time):**
-- standard_macro: 266W / 323L
-- dt_rush: 195W / 119L
-- four_gate: 197W / 129L
+- standard_macro: 283W / 348L
+- dt_rush: 205W / 127L
+- four_gate: 213W / 139L
 
 **By strategy (recent 10 games):**
-- four_gate: 1W / 1L
-- standard_macro: 1W / 4L
-- dt_rush: 2W / 1L
+- standard_macro: 2W / 6L
+- dt_rush: 0W / 1L
+- four_gate: 1W / 0L
 
 **Analysis:**
-The bot is declining (40% recent vs 51% all-time). The clearest failures are: Game 1 (four_gate vs Protoss) where army builds to 50 on 1 base by t=720 but never attacks or expands — the permanent_attack_mode threshold of 20 should fire but something is blocking it; Game 6 (dt_rush vs Terran) where army reaches 34 on 1 base at t=900 and grinds on indefinitely — the _large_army_1base_since trigger (army>=30, time>600) should fire but the game continues past t=900; Game 3 (standard_macro vs Zerg) where workers collapse from 46 to 12 between t=480-600 while army holds at 24, then the bot grinds on 1 base with army=29-30 from t=720-1140 for 420 seconds — the frozen_state detection should catch army stable at 29-30 for 180s but it requires army>=20 AND workers>=20 and the tolerance of 3 means 29-30 passes as stable, so the issue is the _frozen_state_since timer resetting or the 180s timeout being too long for 1-base stalls.
+The bot is in significant decline (30% vs 50.9% all-time), with 7 losses in the last 10 games. The clearest failure patterns are: Game 3 (standard_macro vs Protoss) runs for 1860s with a maxed 75-79 army sitting on 2-4 bases doing nothing — the stable_army_1base trigger doesn't fire because bases>1, the large_army stall trigger requires 1 base, and the frozen_state 300s timeout on 2+ bases is far too long; Game 6 (standard_macro vs Protoss) shows 40 workers + army growing from 20-39 on 1 base from t=360-780 and never expanding or attacking — the large_army_1base_attack override should be triggering but army is apparently fluctuating enough to reset timers; Game 5 (standard_macro vs Zerg) collapses at t=540 with army dropping to 2 on 1 base with 40 workers showing the bot never expanded despite workers>=40 on 1 base. The frozen_state timeout of 300s on multi-base games is the most critical bug since Game 3 dragged on for 1860s with army stable at 75-79.
 
 ## Applied Improvements
-- Game 1 fix: four_gate army grows to 50 on 1 base by t=720 but never attacks — the _four_gate_post_cheese_large_army path requires army>=15 but the _permanent_attack_mode path (army>=20, time>480) should also fire; add explicit hard attack override for any strategy when army>=20 on 1 base past t=480 with workers>=20 to catch this stall before the frozen_state timer fires
-- Game 6 fix: dt_rush vs Terran, army=34 on 1 base at t=900 never triggers surrender — the _large_army_1base_since trigger requires not already_pending(NEXUS) but may be getting reset; also reduce the frozen_state timeout on 1 base from 180s to 90s so Game 3's army=29-30 stable for 420s surrenders much sooner
-- Game 3 fix: standard_macro vs Zerg, army stable at 24-30 on 1 base from t=720-1140 (420s) — frozen_state never fires because workers fluctuate 12-33 resetting the snapshot; add a dedicated grind surrender when army is stable (peak>=20, current>=20) on 1 base with workers>=10 past t=600 persisting 120s, independent of worker count fluctuations
+- Reduce frozen_state timeout on 2+ bases from 300s to 90s and add a multi-base stable-army surrender for army>=40 stable for 120s on 2+ bases, since Game 3 shows 75-army sitting idle for 1000+ seconds across 4 bases with no attack
+- Add a multi-base large-army stall surrender: if army>=40 is stable (within 5 units) on 2+ bases past t=600 for 120s with minerals>500 (meaning no spending), surrender — catches Game 3's 75-army sitting on 4 bases for 1200s
+- Force permanent attack on 2+ bases when army>=40 past t=600 to break Game 3's maxed-army camping pattern — add a multi-base large army attack override alongside the existing 1-base override
